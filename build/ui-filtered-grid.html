@@ -1,0 +1,5756 @@
+<link href="http://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css">
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+`core-list` displays a virtual, 'infinite' list. The template inside the 
+`core-list` element represents the DOM to create for each list item. The
+`data` property specifies an array of list item data.
+
+For performance reasons, not every item in the list is rendered at once; instead
+a small subset of actual template elements (enough to fill the viewport) are
+rendered and reused as the user scrolls.  As such, it is important that all
+state of the list template be bound to the model driving it, since the view 
+may be reused with a new model at any time.  Particularly, any state that 
+may change as the result of a user interaction with the list item must be
+bound to the model to avoid view state inconsistency.
+
+### Template model
+
+List item templates should bind to template models of the following structure:
+
+    {
+      index: 0,           // data index for this item
+      selected: false,    // selection state for this item
+      model: {            // user data corresponding to data[index]
+        /* user item data  */
+      }
+    }
+
+For example, given the following data array:
+
+    [
+      {name: 'Bob', checked: true},
+      {name: 'Tim', checked: false},
+      ...
+    ]
+
+The following code would render the list (note the `name` and `checked`
+properties are bound from the `model` object provided to the template
+scope):
+
+    <core-list data="{{data}}">
+      <template>
+        <div class="row {{ {selected: selected} | tokenList }}">
+          List row: {{index}}, User data from model: {{model.name}}
+          <input type="checkbox" checked="{{model.checked}}">
+        </div>
+      </template>
+    </core-list>
+
+### Selection
+
+By default, the list supports selection via tapping. Styling selected items
+should be done via binding to the `selected` property of each model (see examples
+above.  The data model for the selected item (for single-selection) or array of
+models (for multi-selection) is published to the `selection` property.
+
+### Grouping **(experimental)**
+
+`core-list` supports showing dividers between groups of data by setting the 
+`groups` property to an array containing group information.  An element with
+a `divider` attribute set should be supplied a the top level of the template
+next to the template item to provide the divider template.  The template model
+contains extra fields when `groups` is used, as follows:
+
+    {
+      index: 0,           // data index for this item
+      groupIndex: 0,      // group index for this item
+      groupItemIndex: 0,  // index within group for this item
+      selected: false,    // selection state for this item
+      model: {            // user data corresponding to data[index]
+        /* user item data  */
+      },
+      groupModel: {       // user group data corresponding to groups[index]
+        /* user group data */
+      }
+    }
+
+Groups may be specified one of two ways (users should choose the data format 
+that closest matches their source data, to avoid the performance impact of 
+needing totransform data to fit the required structure):
+
+1. Flat data array - In this scenario, the `data` array is provided as 
+a flat list of models.  Group lengths are determined by the `length` property
+on each group object, with the `data` property providing user-specified group
+data, typically for binding to dividers.  For example:
+
+        data = [
+          { name: 'Adam' },
+          { name: 'Alex' },
+          { name: 'Bob' },
+          { name: 'Chuck' },
+          { name: 'Cathy' },
+          ...
+        ];
+
+        groups = [
+          { length: 2, data: { letter: 'A' } },
+          { length: 1, data: { letter: 'B' } },
+          { length: 2, data: { letter: 'C' } },
+          ...
+        ];
+
+        <core-list data="{{data}}" groups="{{groups}}">
+          <template>
+            <div divider class="divider">{{groupModel.letter}}</div>
+            <div class="item">{{model.name}}</div>
+          </template>
+        </core-list>
+
+2. Nested data array - In this scenario, the `data` array is a nested
+array of arrays of models, where each array determines the length of the
+group, and the `groups` models provide the user-specified data directly.
+For example:
+
+        data = [
+          [ { name: 'Adam' }, { name: 'Alex' } ],
+          [ { name: 'Bob' } ],
+          [ { name: 'Chuck' }, { name: 'Cathy' } ],
+          ...
+        ];
+
+        groups = [
+          { letter: 'A' },
+          { letter: 'B' },
+          { letter: 'C' },
+          ...
+        ];
+
+        <core-list data="{{data}}" groups="{{groups}}">
+          <template>
+            <div divider class="divider">{{groupModel.letter}}</div>
+            <div class="item">{{model.name}}</div>
+          </template>
+        </core-list>
+
+### Grid layout **(experimental)**
+
+`core-list` supports a grid layout in addition to linear layout by setting
+the `grid` attribute.  In this case, the list template item must have both fixed
+width and height (e.g. via CSS), with the desired width of each grid item
+specified by the `width` attribute.  Based on this, the number of items 
+per row are determined automatically based on the size of the list viewport.
+
+### Non-native scrollers **(experimental)**
+
+By default, core-list assumes the `scrollTarget` (if set) is a native scrollable
+element (e.g. `overflow:auto` or `overflow:y`) that fires the `scroll` event and
+whose scroll position can be read/set via the `scrollTop` property.
+`core-list` provides experimental support for setting `scrollTarget`
+to a custom scroller element (e.g. a JS-based scroller) as long as it provides 
+the following abstract API:
+
+  - `getScrollTop()` - returns the current scroll position
+  - `setScrollTop(y)` - sets the current scroll position
+  - Fires a `scroll` event indicating when the scroll position has changed
+
+@group Polymer Core Elements
+@element core-list
+-->
+<!-- did not import ../polymer/polymer.html-->
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<!--
+@group Polymer Core Elements
+
+The `<core-selection>` element is used to manage selection state. It has no
+visual appearance and is typically used in conjunction with another element.
+For example, [core-selector](#core-selector)
+uses a `<core-selection>` to manage selection.
+
+To mark an item as selected, call the `select(item)` method on 
+`<core-selection>`. The item itself is an argument to this method.
+
+The `<core-selection>`element manages selection state for any given set of
+items. When an item is selected, the `core-select` event is fired.
+
+The attribute `multi` indicates if multiple items can be selected at once.
+  
+Example:
+ 
+    <polymer-element name="selection-example">
+       <template>
+         <style>
+           polyfill-next-selector { content: ':host > .selected'; }
+           ::content > .selected {
+             font-weight: bold;
+             font-style: italic;
+           }
+         </style>
+         <ul on-tap="{{itemTapAction}}">
+           <content></content>
+         </ul>
+         <core-selection id="selection" multi
+                         on-core-select="{{selectAction}}"></core-selection>
+       </template>
+       <script>
+         Polymer('selection-example', {
+           itemTapAction: function(e, detail, sender) {
+             this.$.selection.select(e.target);
+           },
+           selectAction: function(e, detail, sender) {
+             detail.item.classList.toggle('selected', detail.isSelected);
+           }
+         });
+       </script>
+    </polymer-element>
+
+    <selection-example>
+      <li>Red</li>
+      <li>Green</li>
+      <li>Blue</li>
+    </selection-example>
+ 
+@element core-selection
+-->
+
+<!--
+Fired when an item's selection state is changed. This event is fired both
+when an item is selected or deselected. The `isSelected` detail property
+contains the selection state.
+
+@event core-select
+@param {Object} detail
+  @param {boolean} detail.isSelected true for selection and false for de-selection
+  @param {Object} detail.item the item element
+-->
+<!-- did not import ../polymer/polymer.html-->
+
+<polymer-element name="core-selection" attributes="multi" hidden>
+  <script>
+    Polymer('core-selection', {
+      /**
+       * If true, multiple selections are allowed.
+       *
+       * @attribute multi
+       * @type boolean
+       * @default false
+       */
+      multi: false,
+      ready: function() {
+        this.clear();
+      },
+      clear: function() {
+        this.selection = [];
+      },
+      /**
+       * Retrieves the selected item(s).
+       * @method getSelection
+       * @returns Returns the selected item(s). If the multi property is true,
+       * getSelection will return an array, otherwise it will return 
+       * the selected item or undefined if there is no selection.
+      */
+      getSelection: function() {
+        return this.multi ? this.selection : this.selection[0];
+      },
+      /**
+       * Indicates if a given item is selected.
+       * @method isSelected
+       * @param {any} item The item whose selection state should be checked.
+       * @returns Returns true if `item` is selected.
+      */
+      isSelected: function(item) {
+        return this.selection.indexOf(item) >= 0;
+      },
+      setItemSelected: function(item, isSelected) {
+        if (item !== undefined && item !== null) {
+          if (isSelected) {
+            this.selection.push(item);
+          } else {
+            var i = this.selection.indexOf(item);
+            if (i >= 0) {
+              this.selection.splice(i, 1);
+            }
+          }
+          this.fire("core-select", {isSelected: isSelected, item: item});
+        }
+      },
+      /**
+       * Set the selection state for a given `item`. If the multi property
+       * is true, then the selected state of `item` will be toggled; otherwise
+       * the `item` will be selected.
+       * @method select
+       * @param {any} item: The item to select.
+      */
+      select: function(item) {
+        if (this.multi) {
+          this.toggle(item);
+        } else if (this.getSelection() !== item) {
+          this.setItemSelected(this.getSelection(), false);
+          this.setItemSelected(item, true);
+        }
+      },
+      /**
+       * Toggles the selection state for `item`.
+       * @method toggle
+       * @param {any} item: The item to toggle.
+      */
+      toggle: function(item) {
+        this.setItemSelected(item, !this.isSelected(item));
+      }
+    });
+  </script>
+</polymer-element>
+
+
+<polymer-element name="core-list" on-tap="{{tapHandler}}" tabindex="-1">
+<template>
+  <core-selection id="selection" multi="{{multi}}" on-core-select="{{selectedHandler}}"></core-selection>
+  <style>:host {
+  display: block;
+  outline: none;
+  position: relative;
+}
+polyfill-next-selector {
+  content: '.core-list-viewport > *';
+}
+::content > * {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  opacity: 0;
+}
+polyfill-next-selector {
+  content: ':host(:not([grid])) .core-list-viewport > *';
+}
+:host(:not([grid])) ::content > * {
+  width: 100%;
+}
+.core-list-items.horizontal {
+  height: 100%;
+  white-space: nowrap;
+}
+.core-list-items.horizontal > * {
+  display: inline-block;
+}
+</style>
+  <div id="viewport" class="core-list-viewport"><content></content></div>
+</template>
+<script>
+(function() {
+
+  var IOS = navigator.userAgent.match(/iP(?:hone|ad;(?: U;)? CPU) OS (\d+)/);
+  var IOS_TOUCH_SCROLLING = IOS && IOS[1] >= 8;
+
+  Polymer('core-list', {
+    
+    publish: {
+      /**
+       * Fired when an item element is tapped.
+       * 
+       * @event core-activate
+       * @param {Object} detail
+       *   @param {Object} detail.item the item element
+       */
+
+      /**
+       * An array of source data for the list to display.  Elements
+       * from this array will be set to the `model` peroperty on each
+       * template instance scope for binding.
+       *
+       * When `groups` is used, this array may either be flat, with
+       * the group lengths specified in the `groups` array; otherwise
+       * `data` may be specified as an array of arrays, such that the
+       * each array in `data` specifies a group.  See examples above.
+       *
+       * @attribute data
+       * @type array
+       * @default null
+       */
+      data: null,
+
+      /**
+       * An array of data conveying information about groupings of items
+       * in the `data` array.  Elements from this array will be set to the
+       * `groupModel` property of each template instance scope for binding.
+       *
+       * When `groups` is used, template children with the `divider` attribute
+       * will be shown above each group.  Typically data from the `groupModel`
+       * would be bound to dividers.
+       *
+       * If `data` is specified as a flat array, the `groups` array must
+       * contain objects of the format `{ length: n, data: {...} }`, where
+       * `length` determines the number of items from the `data` array
+       * that should be grouped, and `data` specifies the user data that will
+       * be assigned to the `groupModel` property on the template instance
+       * scope.
+       *
+       * If `data` is specified as a nested array of arrays, group lengths
+       * are derived from these arrays, so each object in `groups` need only
+       * contain the user data to be assigned to `groupModel`.
+       *
+       * @attribute groups
+       * @type array
+       * @default null
+       */
+      groups: null,
+
+      /**
+       * 
+       * An optional element on which to listen for scroll events.
+       *
+       * @attribute scrollTarget
+       * @type Element
+       * @default core-list
+       */
+      scrollTarget: null,
+
+      /**
+       * 
+       * When true, tapping a row will select the item, placing its data model
+       * in the set of selected items retrievable via the `selection` property.
+       *
+       * Note that tapping focusable elements within the list item will not
+       * result in selection, since they are presumed to have their own action.
+       *
+       * @attribute selectionEnabled
+       * @type {boolean}
+       * @default true
+       */
+      selectionEnabled: true,
+
+      /**
+       * 
+       * Set to true to support multiple selection.  Note, existing selection
+       * state is maintained only when changing `multi` from `false` to `true`;
+       * it is cleared when changing from `true` to `false`.
+       *
+       * @attribute multi
+       * @type boolean
+       * @default false
+       */
+      multi: false,
+
+      /**
+       * 
+       * Data record (or array of records, if `multi: true`) corresponding to
+       * the currently selected set of items.
+       *
+       * @attribute selection
+       * @type {any}
+       * @default null
+       */
+       selection: null,
+
+      /**
+       * 
+       * When true, the list is rendered as a grid.  Grid items must be fixed
+       * height and width, with the width of each item specified in the `width`
+       * property.
+       *
+       * @attribute grid
+       * @type boolean
+       * @default false
+       */
+       grid: false,
+
+      /**
+       * 
+       * When `grid` is used, `width` determines the width of each grid item.
+       * This property has no meaning when not in `grid` mode.
+       *
+       * @attribute width
+       * @type number
+       * @default null
+       */
+       width: null,
+
+      /**
+       * The approximate height of a list item, in pixels. This is used only for determining
+       * the number of physical elements to render based on the viewport size
+       * of the list.  Items themselves may vary in height between each other
+       * depending on their data model.  There is typically no need to adjust 
+       * this value unless the average size is much larger or smaller than the default.
+       *
+       * @attribute height
+       * @type number
+       * @default 200
+       */
+      height: 200,
+
+      /**
+       * The amount of scrolling runway the list keeps rendered, as a factor of
+       * the list viewport size.  There is typically no need to adjust this value
+       * other than for performance tuning.  Larger value correspond to more
+       * physical elements being rendered.
+       *
+       * @attribute runwayFactor
+       * @type number
+       * @default 4
+       */
+      runwayFactor: 4
+
+    },
+
+    // Local cache of scrollTop
+    _scrollTop: 0,
+    
+    observe: {
+      'data grid width template scrollTarget': 'initialize',
+      'multi selectionEnabled': '_resetSelection'
+    },
+
+    ready: function() {
+      this._boundScrollHandler = this.scrollHandler.bind(this);
+      this._boundPositionItems = this._positionItems.bind(this);
+      this._oldMulti = this.multi;
+      this._oldSelectionEnabled = this.selectionEnabled;
+      this._virtualStart = 0;
+      this._virtualCount = 0;
+      this._physicalStart = 0;
+      this._physicalOffset = 0;
+      this._physicalSize = 0;
+      this._physicalSizes = [];
+      this._physicalAverage = 0;
+      this._itemSizes = [];
+      this._dividerSizes = [];
+      this._repositionedItems = [];
+
+      this._aboveSize = 0;
+
+      this._nestedGroups = false;
+      this._groupStart = 0;
+      this._groupStartIndex = 0;
+
+      this._boundResizeHandler = this.updateSize.bind(this);
+      window.addEventListener('resize', this._boundResizeHandler);
+    },
+
+    attached: function() {
+      this.template = this.querySelector('template');
+      if (!this.template.bindingDelegate) {
+        this.template.bindingDelegate = this.element.syntax;
+      }
+    },
+
+    detached: function() {
+      this.removeEventListener(this._boundScrollHandler);
+      this.removeEventListener(this._boundResizeHandler);
+    },
+
+    /**
+     * To be called by the user when the list is resized or shown
+     * after being hidden.  Note, `core-list` calls this automatically
+     * when the window is resized.
+     *
+     * @method updateSize
+     */
+    updateSize: function() {
+      this._resetIndex(this._getFirstVisibleIndex());
+      this.initializeData();
+    },
+
+    _resetSelection: function() {
+      if (((this._oldMulti != this.multi) && !this.multi) || 
+          ((this._oldSelectionEnabled != this.selectionEnabled) && 
+            !this.selectionEnabled)) {
+        this._clearSelection();
+        this.refresh();
+      } else {
+        this.selection = this.$.selection.getSelection();
+      }
+      this._oldMulti = this.multi;
+      this._oldSelectionEnabled = this.selectionEnabled;
+    },
+
+    // Adjust virtual start index based on changes to backing data
+    _adjustVirtualIndex: function(splices, group) {
+      if (this._targetSize === 0) {
+        return;
+      }
+      var totalDelta = 0;
+      for (var i=0; i<splices.length; i++) {
+        var s = splices[i];
+        var idx = s.index;
+        var gidx, gitem;
+        if (group) {
+          gidx = this.data.indexOf(group);
+          idx += this.virtualIndexForGroup(gidx);
+        }
+        // We only need to care about changes happening above the current position
+        if (idx >= this._virtualStart) {
+          break;
+        }
+        var delta = Math.max(s.addedCount - s.removed.length, idx - this._virtualStart);
+        totalDelta += delta;
+        this._physicalStart += delta;
+        this._virtualStart += delta;
+        if (this._grouped) {
+          if (group) {
+            gitem = s.index;
+          } else {
+            var g = this.groupForVirtualIndex(s.index);
+            gidx = g.group;
+            gitem = g.groupIndex;
+          }
+          if (gidx == this._groupStart && gitem < this._groupStartIndex) {
+            this._groupStartIndex += delta;
+          }
+        }
+      }
+      // Adjust offset/scroll position based on total number of items changed
+      if (this._virtualStart < this._physicalCount) {
+        this._resetIndex(this._getFirstVisibleIndex());
+      } else {
+        totalDelta = Math.max((totalDelta / this._rowFactor) * this._physicalAverage, -this._physicalOffset);
+        this._physicalOffset += totalDelta;
+        this._scrollTop = this.setScrollTop(this._scrollTop + totalDelta);
+      }
+    },
+
+    _updateSelection: function(splices) {
+      for (var i=0; i<splices.length; i++) {
+        var s = splices[i];
+        for (var j=0; j<s.removed.length; j++) {
+          var d = s.removed[j];
+          this.$.selection.setItemSelected(d, false);
+        }
+      }
+    },
+
+    groupsChanged: function() {
+      if (!!this.groups != this._grouped) {
+        this.initialize();
+        this._resetIndex(this._getFirstVisibleIndex() || this._virtualStart);
+      }
+    },
+
+    initialize: function() {
+      if (!this.template) {
+        return;
+      }
+
+      // TODO(kschaaf): Checking arguments.length currently the only way to 
+      // know that the array was mutated as opposed to newly assigned; need
+      // a better API for Polymer observers
+      var splices;
+      if (arguments.length == 1) {
+        splices = arguments[0];
+        if (!this._nestedGroups) {
+          this._adjustVirtualIndex(splices);
+        }
+        this._updateSelection(splices);
+      } else {
+        this._clearSelection();
+      }
+
+      // Initialize scroll target
+      var target = this.scrollTarget || this;
+      if (this._target !== target) {
+        this.initializeScrollTarget(target);
+      }
+
+      // Initialize data
+      this.initializeData(splices, false);
+    },
+
+    initializeScrollTarget: function(target) {
+      // Listen for scroll events
+      if (this._target) {
+        this._target.removeEventListener('scroll', this._boundScrollHandler, false);
+      }
+      this._target = target;
+      target.addEventListener('scroll', this._boundScrollHandler, false);
+      // Support for non-native scrollers (must implement abstract API):
+      // getScrollTop, setScrollTop, sync
+      if ((target != this) && target.setScrollTop && target.getScrollTop) {
+        this.setScrollTop = function(val) {
+          target.setScrollTop(val);
+          return target.getScrollTop();
+        };
+        this.getScrollTop = target.getScrollTop.bind(target);
+        this.syncScroller = target.sync ? target.sync.bind(target) : function() {};
+        // Adjusting scroll position on non-native scrollers is risky
+        this.adjustPositionAllowed = false;
+      } else {
+        this.setScrollTop = function(val) {
+          target.scrollTop = val;
+          return target.scrollTop;
+        };
+        this.getScrollTop = function() {
+          return target.scrollTop;
+        };
+        this.syncScroller = function() {};
+        this.adjustPositionAllowed = true;
+      }
+      // Only use -webkit-overflow-touch from iOS8+, where scroll events are fired
+      if (IOS_TOUCH_SCROLLING) {
+        target.style.webkitOverflowScrolling = 'touch';
+        // Adjusting scrollTop during iOS momentum scrolling is "no bueno"
+        this.adjustPositionAllowed = false;
+      }
+      // Force overflow as necessary
+      this._target.style.willChange = 'transform';
+      if (getComputedStyle(this._target).position == 'static') {
+        this._target.style.position = 'relative';
+      }
+      this.style.overflowY = (target == this) ? 'auto' : null;
+    },
+
+    updateGroupObservers: function(splices) {
+      // If we're going from grouped to non-grouped, remove all observers
+      if (!this._nestedGroups) {
+        if (this._groupObservers && this._groupObservers.length) {
+          splices = [{
+            index: 0,
+            addedCount: 0,
+            removed: this._groupObservers
+          }];
+        } else {
+          splices = null;
+        }
+      }
+      // Otherwise, create observers for all groups, unless this is a group splice
+      if (this._nestedGroups) {
+        splices = splices || [{
+          index: 0,
+          addedCount: this.data.length,
+          removed: []
+        }];
+      }
+      if (splices) {
+        var observers = this._groupObservers || [];
+        // Apply the splices to the observer array
+        for (var i=0; i<splices.length; i++) {
+          var s = splices[i], j;
+          var args = [s.index, s.removed.length];
+          if (s.removed.length) {
+            for (j=s.index; j<s.removed.length; j++) {
+              observers[j].close();
+            }
+          }
+          if (s.addedCount) {
+            for (j=s.index; j<s.addedCount; j++) {
+              var o = new ArrayObserver(this.data[j]);
+              args.push(o);
+              o.open(this.getGroupDataHandler(this.data[j]));
+            }
+          }
+          observers.splice.apply(observers, args);
+        }
+        this._groupObservers = observers;
+      }
+    },
+
+    getGroupDataHandler: function(group) {
+      return function(splices) {
+        this.groupDataChanged(splices, group);
+      }.bind(this);
+    },
+
+    groupDataChanged: function(splices, group) {
+      this._adjustVirtualIndex(splices, group);
+      this._updateSelection(splices);
+      this.initializeData(null, true);
+    },
+
+    initializeData: function(splices, groupUpdate) {
+      var i;
+
+      // Calculate row-factor for grid layout
+      if (this.grid) {
+        if (!this.width) {
+          throw 'Grid requires the `width` property to be set';
+        }
+        this._rowFactor = Math.floor(this._target.offsetWidth / this.width) || 1;
+        this._rowMargin = (this._target.offsetWidth - (this._rowFactor * this.width)) / 2;
+      } else {
+        this._rowFactor = 1;
+        this._rowMargin = 0;
+      }
+
+      // Count virtual data size, depending on whether grouping is enabled
+      if (!this.data || !this.data.length) {
+        this._virtualCount = 0;
+        this._grouped = false;
+        this._nestedGroups = false;
+      } else if (this.groups) {
+        this._grouped = true;
+        this._nestedGroups = Array.isArray(this.data[0]);
+        if (this._nestedGroups) {
+          if (this.groups.length != this.data.length) {
+            throw 'When using nested grouped data, data.length and groups.length must agree!';
+          }
+          this._virtualCount = 0;
+          for (i=0; i<this.groups.length; i++) {
+            this._virtualCount += this.data[i] && this.data[i].length;
+          }
+        } else {
+          this._virtualCount = this.data.length;
+          var len = 0;
+          for (i=0; i<this.groups.length; i++) {
+            len += this.groups[i].length;
+          }
+          if (len != this.data.length) {
+            throw 'When using groups data, the sum of group[n].length\'s and data.length must agree!';
+          }
+        }
+        var g = this.groupForVirtualIndex(this._virtualStart);
+        this._groupStart = g.group;
+        this._groupStartIndex = g.groupIndex;
+      } else {
+        this._grouped = false;
+        this._nestedGroups = false;
+        this._virtualCount = this.data.length;
+      }
+
+      // Update grouped array observers used when group data is nested
+      if (!groupUpdate) {
+        this.updateGroupObservers(splices);
+      }
+      
+      // Add physical items up to a max based on data length, viewport size, and extra item overhang
+      var currentCount = this._physicalCount || 0;
+      this._physicalCount = Math.min(Math.ceil(this._target.offsetHeight / (this._physicalAverage || this.height)) * this.runwayFactor * this._rowFactor, this._virtualCount);
+      this._physicalCount = Math.max(currentCount, this._physicalCount);
+      this._physicalData = this._physicalData || new Array(this._physicalCount);
+      var needItemInit = false;
+      while (currentCount < this._physicalCount) {
+        var model = this.templateInstance ? Object.create(this.templateInstance.model) : {};
+        this._physicalData[currentCount++] = model;
+        needItemInit = true;
+      }
+      this.template.model = this._physicalData;
+      this.template.setAttribute('repeat', '');
+      this._dir = 0;
+
+      // If we've added new items, wait until the template renders then
+      // initialize the new items before refreshing
+      if (!this._needItemInit) {
+        if (needItemInit) {
+          this._needItemInit = true;
+          this.resetMetrics();
+          this.onMutation(this, this.initializeItems);
+        } else {
+          this.refresh();
+        }
+      }
+    },
+
+    initializeItems: function() {
+      var currentCount = this._physicalItems && this._physicalItems.length || 0;
+      this._physicalItems = this._physicalItems || [new Array(this._physicalCount)];
+      this._physicalDividers = this._physicalDividers || new Array(this._physicalCount);
+      for (var i = 0, item = this.template.nextElementSibling;
+           item && i < this._physicalCount;
+           item = item.nextElementSibling) {
+        if (item.getAttribute('divider') != null) {
+          this._physicalDividers[i] = item;
+        } else {
+          this._physicalItems[i++] = item;
+        }
+      }
+      this.refresh();
+      this._needItemInit = false;
+    },
+
+    _updateItemData: function(force, physicalIndex, virtualIndex, groupIndex, groupItemIndex) {
+      var physicalItem = this._physicalItems[physicalIndex];
+      var physicalDatum = this._physicalData[physicalIndex];
+      var virtualDatum = this.dataForIndex(virtualIndex, groupIndex, groupItemIndex);
+      var needsReposition;
+      if (force || physicalDatum.model != virtualDatum) {
+        // Set model, index, and selected fields
+        physicalDatum.model = virtualDatum;
+        physicalDatum.index = virtualIndex;
+        physicalDatum.physicalIndex = physicalIndex;
+        physicalDatum.selected = this.selectionEnabled && virtualDatum ? 
+            this._selectedData.get(virtualDatum) : null;
+        // Set group-related fields
+        if (this._grouped) {
+          var groupModel = this.groups[groupIndex];
+          physicalDatum.groupModel = groupModel && (this._nestedGroups ? groupModel : groupModel.data);
+          physicalDatum.groupIndex = groupIndex;
+          physicalDatum.groupItemIndex = groupItemIndex;
+          physicalItem._isDivider = this.data.length && (groupItemIndex === 0);
+          physicalItem._isRowStart = (groupItemIndex % this._rowFactor) === 0;
+        } else {
+          physicalDatum.groupModel = null;
+          physicalDatum.groupIndex = null;
+          physicalDatum.groupItemIndex = null;
+          physicalItem._isDivider = false;
+          physicalItem._isRowStart = (virtualIndex % this._rowFactor) === 0;
+        }
+        // Hide physical items when not in use (no model assigned)
+        physicalItem.hidden = !virtualDatum;
+        var divider = this._physicalDividers[physicalIndex];
+        if (divider && (divider.hidden == physicalItem._isDivider)) {
+          divider.hidden = !physicalItem._isDivider;
+        }
+        needsReposition = !force;
+      } else {
+        needsReposition = false;
+      }
+      return needsReposition || force;
+    },
+
+    scrollHandler: function() {
+      if (IOS_TOUCH_SCROLLING) {
+        // iOS sends multiple scroll events per rAF
+        // Align work to rAF to reduce overhead & artifacts
+        if (!this._raf) {
+          this._raf = requestAnimationFrame(function() { 
+            this._raf = null;
+            this.refresh();
+          }.bind(this));
+        }
+      } else {
+        this.refresh();
+      }
+    },
+
+    resetMetrics: function() {
+      this._physicalAverage = 0;
+      this._physicalAverageCount = 0;
+    },
+
+    updateMetrics: function(force) {
+      // Measure physical items & dividers
+      var totalSize = 0;
+      var count = 0;
+      for (var i=0; i<this._physicalCount; i++) {
+        var item = this._physicalItems[i];
+        if (!item.hidden) {
+          var size = this._itemSizes[i] = item.offsetHeight;
+          if (item._isDivider) {
+            var divider = this._physicalDividers[i];
+            if (divider) {
+              size += (this._dividerSizes[i] = divider.offsetHeight);
+            }
+          }
+          this._physicalSizes[i] = size;
+          if (item._isRowStart) {
+            totalSize += size;
+            count++;
+          }
+        }
+      }
+      this._physicalSize = totalSize;
+
+      // Measure other DOM
+      this._viewportSize = this.$.viewport.offsetHeight;
+      this._targetSize = this._target.offsetHeight;
+
+      // Measure content in scroller before virtualized items
+      if (this._target != this) {
+        el1 = this.previousElementSibling;
+        this._aboveSize = el1 ? el1.offsetTop + el1.offsetHeight : 0;
+      } else {
+        this._aboveSize = 0;
+      }
+
+      // Calculate average height
+      if (count) {
+        totalSize = (this._physicalAverage * this._physicalAverageCount) + totalSize;
+        this._physicalAverageCount += count;
+        this._physicalAverage = Math.round(totalSize / this._physicalAverageCount);
+      }
+    },
+
+    getGroupLen: function(group) {
+      group = arguments.length ? group : this._groupStart;
+      if (this._nestedGroups) {
+        return this.data[group].length;
+      } else {
+        return this.groups[group].length;
+      }
+    },
+
+    changeStartIndex: function(inc) {
+      this._virtualStart += inc;
+      if (this._grouped) {
+        while (inc > 0) {
+          var groupMax = this.getGroupLen() - this._groupStartIndex - 1;
+          if (inc > groupMax) {
+            inc -= (groupMax + 1);
+            this._groupStart++;
+            this._groupStartIndex = 0;
+          } else {
+            this._groupStartIndex += inc;
+            inc = 0;
+          }
+        }
+        while (inc < 0) {
+          if (-inc > this._groupStartIndex) {
+            inc += this._groupStartIndex;
+            this._groupStart--;
+            this._groupStartIndex = this.getGroupLen();
+          } else {
+            this._groupStartIndex += inc;
+            inc = this.getGroupLen();
+          }
+        }
+      }
+      // In grid mode, virtualIndex must alway start on a row start!
+      if (this.grid) {
+        if (this._grouped) {
+          inc = this._groupStartIndex % this._rowFactor;
+        } else {
+          inc = this._virtualStart % this._rowFactor;
+        }
+        if (inc) {
+          this.changeStartIndex(-inc);
+        }
+      }
+    },
+
+    getRowCount: function(dir) {
+      if (!this.grid) {
+        return dir;
+      } else if (!this._grouped) {
+        return dir * this._rowFactor;
+      } else {
+        if (dir < 0) {
+          if (this._groupStartIndex > 0) {
+            return -Math.min(this._rowFactor, this._groupStartIndex);
+          } else {
+            var prevLen = this.getGroupLen(this._groupStart-1);
+            return -Math.min(this._rowFactor, prevLen % this._rowFactor || this._rowFactor);
+          }
+        } else {
+          return Math.min(this._rowFactor, this.getGroupLen() - this._groupStartIndex);
+        }
+      }
+    },
+
+    _virtualToPhysical: function(virtualIndex) {
+      var physicalIndex = (virtualIndex - this._physicalStart) % this._physicalCount;
+      return physicalIndex < 0 ? this._physicalCount + physicalIndex : physicalIndex;
+    },
+
+    groupForVirtualIndex: function(virtual) {
+      if (!this._grouped) {
+        return {};
+      } else {
+        var group;
+        for (group=0; group<this.groups.length; group++) {
+          var groupLen = this.getGroupLen(group);
+          if (groupLen > virtual) {
+            break;
+          } else {
+            virtual -= groupLen;
+          }
+        }
+        return {group: group, groupIndex: virtual };
+      }
+    },
+
+    virtualIndexForGroup: function(group, groupIndex) {
+      groupIndex = groupIndex ? Math.min(groupIndex, this.getGroupLen(group)) : 0;
+      group--;
+      while (group >= 0) {
+        groupIndex += this.getGroupLen(group--);
+      }
+      return groupIndex;
+    },
+
+    dataForIndex: function(virtual, group, groupIndex) {
+      if (this.data) {
+        if (this._nestedGroups) {
+          if (virtual < this._virtualCount) {
+            return this.data[group][groupIndex];
+          }
+        } else {
+          return this.data[virtual];
+        }
+      }
+    },
+
+    // Refresh the list at the current scroll position.
+    refresh: function() {
+      var i, deltaCount;
+
+      // Determine scroll position & any scrollDelta that may have occurred
+      var lastScrollTop = this._scrollTop;
+      this._scrollTop = this.getScrollTop();
+      var scrollDelta = this._scrollTop - lastScrollTop;
+      this._dir = scrollDelta < 0 ? -1 : scrollDelta > 0 ? 1 : 0;
+
+      // Adjust virtual items and positioning offset if scroll occurred
+      if (Math.abs(scrollDelta) > Math.max(this._physicalSize, this._targetSize)) {
+        // Random access to point in list: guess new index based on average size
+        deltaCount = Math.round((scrollDelta / this._physicalAverage) * this._rowFactor);
+        deltaCount = Math.max(deltaCount, -this._virtualStart);
+        deltaCount = Math.min(deltaCount, this._virtualCount - this._virtualStart - 1);
+        this._physicalOffset += Math.max(scrollDelta, -this._physicalOffset);
+        this.changeStartIndex(deltaCount);
+        // console.log(this._scrollTop, 'Random access to ' + this._virtualStart, this._physicalOffset);
+      } else {
+        // Incremental movement: adjust index by flipping items
+        var base = this._aboveSize + this._physicalOffset;
+        var margin = 0.3 * Math.max((this._physicalSize - this._targetSize, this._physicalSize));
+        this._upperBound = base + margin;
+        this._lowerBound = base + this._physicalSize - this._targetSize - margin;
+        var flipBound = this._dir > 0 ? this._upperBound : this._lowerBound;
+        if (((this._dir > 0 && this._scrollTop > flipBound) ||
+             (this._dir < 0 && this._scrollTop < flipBound))) {
+          var flipSize = Math.abs(this._scrollTop - flipBound);
+          for (i=0; (i<this._physicalCount) && (flipSize > 0) &&
+              ((this._dir < 0 && this._virtualStart > 0) || 
+               (this._dir > 0 && this._virtualStart < this._virtualCount-this._physicalCount)); i++) {
+            var idx = this._virtualToPhysical(this._dir > 0 ? 
+              this._virtualStart : 
+              this._virtualStart + this._physicalCount -1);
+            var size = this._physicalSizes[idx];
+            flipSize -= size;
+            var cnt = this.getRowCount(this._dir);
+            // console.log(this._scrollTop, 'flip ' + (this._dir > 0 ? 'down' : 'up'), cnt, this._virtualStart, this._physicalOffset);
+            if (this._dir > 0) {
+              // When scrolling down, offset is adjusted based on previous item's size
+              this._physicalOffset += size;
+              // console.log('  ->', this._virtualStart, size, this._physicalOffset);
+            }
+            this.changeStartIndex(cnt);
+            if (this._dir < 0) {
+              this._repositionedItems.push(this._virtualStart);
+            }
+          }
+        }
+      }
+
+      // Assign data to items lazily if scrolling, otherwise force
+      if (this._updateItems(!scrollDelta)) {
+        // Position items after bindings resolve (method varies based on O.o impl)
+        if (Observer.hasObjectObserve) {
+          this.async(this._boundPositionItems);
+        } else {
+          Platform.flush();
+          Platform.endOfMicrotask(this._boundPositionItems);
+        }
+      }
+    },
+
+    _updateItems: function(force) {
+      var i, virtualIndex, physicalIndex;
+      var needsReposition = false;
+      var groupIndex = this._groupStart;
+      var groupItemIndex = this._groupStartIndex;
+      for (i = 0; i < this._physicalCount; ++i) {
+        virtualIndex = this._virtualStart + i;
+        physicalIndex = this._virtualToPhysical(virtualIndex);
+        // Update physical item with new user data and list metadata
+        needsReposition = 
+          this._updateItemData(force, physicalIndex, virtualIndex, groupIndex, groupItemIndex) || needsReposition;
+        // Increment
+        groupItemIndex++;
+        if (this.groups && groupIndex < this.groups.length - 1) {
+          if (groupItemIndex >= this.getGroupLen(groupIndex)) {
+            groupItemIndex = 0;
+            groupIndex++;
+          }
+        }
+      }
+      return needsReposition;
+    },
+
+    _positionItems: function() {
+      var i, virtualIndex, physicalIndex, physicalItem;
+
+      // Measure
+      this.updateMetrics();
+
+      // Pre-positioning tasks
+      if (this._dir < 0) {
+        // When going up, remove offset after measuring size for
+        // new data for item being moved from bottom to top
+        while (this._repositionedItems.length) {
+          virtualIndex = this._repositionedItems.pop();
+          physicalIndex = this._virtualToPhysical(virtualIndex);
+          this._physicalOffset -= this._physicalSizes[physicalIndex];
+          // console.log('  <-', virtualIndex, this._physicalSizes[physicalIndex], this._physicalOffset);
+        }
+        // Adjust scroll position to home into top when going up
+        if (this._scrollTop + this._targetSize < this._viewportSize) {
+          this._updateScrollPosition(this._scrollTop);
+        }
+      }
+
+      // Position items
+      var divider, upperBound, lowerBound;
+      var rowx = 0;
+      var x = this._rowMargin;
+      var y = this._physicalOffset;
+      var lastHeight = 0;
+      for (i = 0; i < this._physicalCount; ++i) {
+        // Calculate indices
+        virtualIndex = this._virtualStart + i;
+        physicalIndex = this._virtualToPhysical(virtualIndex);
+        physicalItem = this._physicalItems[physicalIndex];
+        // Position divider
+        if (physicalItem._isDivider) {
+          if (rowx !== 0) {
+            y += lastHeight;
+            rowx = 0;
+          }
+          divider = this._physicalDividers[physicalIndex];
+          x = this._rowMargin;
+          if (divider && (divider._translateX != x || divider._translateY != y)) {
+            divider.style.opacity = 1;
+            if (this.grid) {
+              divider.style.width = this.width * this._rowFactor + 'px';
+            }
+            divider.style.transform = divider.style.webkitTransform =
+              'translate3d(' + x + 'px,' + y + 'px,0)';
+            divider._translateX = x;
+            divider._translateY = y;
+          }
+          y += this._dividerSizes[physicalIndex];
+        }
+        // Position item
+        if (physicalItem._translateX != x || physicalItem._translateY != y) {
+          physicalItem.style.opacity = 1;
+          physicalItem.style.transform = physicalItem.style.webkitTransform =
+            'translate3d(' + x + 'px,' + y + 'px,0)';
+          physicalItem._translateX = x;
+          physicalItem._translateY = y;
+        }
+        // Increment offsets
+        lastHeight = this._itemSizes[physicalIndex];
+        if (this.grid) {
+          rowx++;
+          if (rowx >= this._rowFactor) {
+            rowx = 0;
+            y += lastHeight;
+          }
+          x = this._rowMargin + rowx * this.width;
+        } else {
+          y += lastHeight;
+        }
+      }
+
+      if (this._scrollTop >= 0) {
+        this._updateViewportHeight();
+      }
+    },
+
+    _updateViewportHeight: function() {
+      var remaining = Math.max(this._virtualCount - this._virtualStart - this._physicalCount, 0);
+      remaining = Math.ceil(remaining / this._rowFactor);
+      var vs = this._physicalOffset + this._physicalSize + remaining * this._physicalAverage;
+      if (this._viewportSize != vs) {
+        // console.log(this._scrollTop, 'adjusting viewport height', vs - this._viewportSize, vs);
+        this._viewportSize = vs;
+        this.$.viewport.style.height = this._viewportSize + 'px';
+        this.syncScroller();
+      }
+    },
+
+    _updateScrollPosition: function(scrollTop) {
+      var deltaHeight = this._virtualStart === 0 ? this._physicalOffset :
+        Math.min(scrollTop + this._physicalOffset, 0);
+      if (deltaHeight) {
+        // console.log(scrollTop, 'adjusting scroll pos', this._virtualStart, -deltaHeight, scrollTop - deltaHeight);
+        if (this.adjustPositionAllowed) {
+          this._scrollTop = this.setScrollTop(scrollTop - deltaHeight);
+        }
+        this._physicalOffset -= deltaHeight;
+      }
+    },
+
+    // list selection
+    tapHandler: function(e) {
+      var n = e.target;
+      var p = e.path;
+      if (!this.selectionEnabled || (n === this)) {
+        return;
+      }
+      requestAnimationFrame(function() {
+        // Gambit: only select the item if the tap wasn't on a focusable child
+        // of the list (since anything with its own action should be focusable
+        // and not result in result in list selection).  To check this, we
+        // asynchronously check that shadowRoot.activeElement is null, which 
+        // means the tapped item wasn't focusable. On polyfill where
+        // activeElement doesn't follow the data-hinding part of the spec, we
+        // can check that document.activeElement is the list itself, which will
+        // catch focus in lieu of the tapped item being focusable, as we make
+        // the list focusable (tabindex="-1") for this purpose.  Note we also
+        // allow the list items themselves to be focusable if desired, so those
+        // are excluded as well.
+        var active = window.ShadowDOMPolyfill ? 
+            wrap(document.activeElement) : this.shadowRoot.activeElement;
+        if (active && (active != this) && (active.parentElement != this) && 
+            (document.activeElement != document.body)) {
+          return;
+        }
+        // Unfortunately, Safari does not focus certain form controls via mouse,
+        // so we also blacklist input, button, & select
+        // (https://bugs.webkit.org/show_bug.cgi?id=118043)
+        if ((p[0].localName == 'input') || 
+            (p[0].localName == 'button') || 
+            (p[0].localName == 'select')) {
+          return;
+        }
+
+        var model = n.templateInstance && n.templateInstance.model;
+        if (model) {
+          var data = this.dataForIndex(model.index, model.groupIndex, model.groupItemIndex);
+          var item = this._physicalItems[model.physicalIndex];
+          if (!this.multi && data == this.selection) {
+            this.$.selection.select(null);
+          } else {
+            this.$.selection.select(data);
+          }
+          this.asyncFire('core-activate', {data: data, item: item});
+        }
+      }.bind(this));
+    },
+
+    selectedHandler: function(e, detail) {
+      this.selection = this.$.selection.getSelection();
+      var id = this.indexesForData(detail.item);
+      // TODO(sorvell): we should be relying on selection to store the
+      // selected data but we want to optimize for lookup.
+      this._selectedData.set(detail.item, detail.isSelected);
+      if (id.physical >= 0 && id.virtual >= 0) {
+        this.refresh();
+      }
+    },
+
+    /**
+     * Select the list item at the given index.
+     *
+     * @method selectItem
+     * @param {number} index 
+     */
+    selectItem: function(index) {
+      if (!this.selectionEnabled) {
+        return;
+      }
+      var data = this.data[index];
+      if (data) {
+        this.$.selection.select(data);
+      }
+    },
+
+    /**
+     * Set the selected state of the list item at the given index.
+     *
+     * @method setItemSelected
+     * @param {number} index 
+     * @param {boolean} isSelected 
+     */
+    setItemSelected: function(index, isSelected) {
+      var data = this.data[index];
+      if (data) {
+        this.$.selection.setItemSelected(data, isSelected);
+      }
+    },
+
+    indexesForData: function(data) {
+      var virtual = -1;
+      var groupsLen = 0;
+      if (this._nestedGroups) {
+        for (var i=0; i<this.groups.length; i++) {
+          virtual = this.data[i].indexOf(data);
+          if (virtual < 0) {
+            groupsLen += this.data[i].length;
+          } else {
+            virtual += groupsLen;
+            break;
+          }
+        }
+      } else {
+        virtual = this.data.indexOf(data);
+      }
+      var physical = this.virtualToPhysicalIndex(virtual);
+      return { virtual: virtual, physical: physical };
+    },
+
+    virtualToPhysicalIndex: function(index) {
+      for (var i=0, l=this._physicalData.length; i<l; i++) {
+        if (this._physicalData[i].index === index) {
+          return i;
+        }
+      }
+      return -1;
+    },
+
+    /**
+     * Clears the current selection state of the list.
+     *
+     * @method clearSelection
+     */
+    clearSelection: function() {
+      this._clearSelection();
+      this.refresh();
+    },
+
+    _clearSelection: function() {
+      this._selectedData = new WeakMap();
+      this.$.selection.clear();
+      this.selection = this.$.selection.getSelection();
+    },
+
+    _getFirstVisibleIndex: function() {
+      for (var i=0; i<this._physicalCount; i++) {
+        var virtualIndex = this._virtualStart + i;
+        var physicalIndex = this._virtualToPhysical(virtualIndex);
+        var item = this._physicalItems[physicalIndex];
+        if (item._translateY >= this._scrollTop) {
+          return virtualIndex;
+        }
+      }
+    },
+
+    _resetIndex: function(index) {
+      index = Math.min(index, this._virtualCount-1);
+      index = Math.max(index, 0);
+      this.changeStartIndex(index - this._virtualStart);
+      this._scrollTop = this.setScrollTop((index / this._rowFactor) * this._physicalAverage);
+      this._physicalOffset = this._scrollTop;
+      this._dir = 0;
+    },
+
+    /**
+     * Scroll to an item.
+     *
+     * Note, when grouping is used, the index is based on the
+     * total flattened number of items.  For scrolling to an item
+     * within a group, use the `scrollToGroupItem` API.
+     *
+     * @method scrollToItem
+     * @param {number} index 
+     */
+    scrollToItem: function(index) {
+      this.scrollToGroupItem(null, index);
+    },
+
+    /**
+     * Scroll to a group.
+     *
+     * @method scrollToGroup
+     * @param {number} group 
+     */
+    scrollToGroup: function(group) {
+      this.scrollToGroupItem(group, 0);
+    },
+
+    /**
+     * Scroll to an item within a group.
+     *
+     * @method scrollToGroupItem
+     * @param {number} group 
+     * @param {number} index 
+     */
+    scrollToGroupItem: function(group, index) {
+      if (group != null) {
+        index = this.virtualIndexForGroup(group, index);
+      }
+      this._resetIndex(index);
+      this.refresh();
+    }
+
+  });
+
+})();
+</script>
+</polymer-element>
+
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+@group Polymer Core Elements
+
+The `core-ajax` element exposes `XMLHttpRequest` functionality.
+
+    <core-ajax
+        auto
+        url="http://gdata.youtube.com/feeds/api/videos/"
+        params='{"alt":"json", "q":"chrome"}'
+        handleAs="json"
+        on-core-response="{{handleResponse}}"></core-ajax>
+
+With `auto` set to `true`, the element performs a request whenever
+its `url`, `params` or `body` properties are changed.
+
+Note: The `params` attribute must be double quoted JSON.
+
+You can trigger a request explicitly by calling `go` on the
+element.
+
+@element core-ajax
+@status beta
+@homepage github.io
+-->
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<!--
+/**
+ * @group Polymer Core Elements
+ *
+ * core-xhr can be used to perform XMLHttpRequests.
+ *
+ *     <core-xhr id="xhr"></core-xhr>
+ *     ...
+ *     this.$.xhr.request({url: url, params: params, callback: callback});
+ *
+ * @element core-xhr
+ */
+-->
+
+<!-- did not import ../polymer/polymer.html-->
+
+<polymer-element name="core-xhr" hidden>
+
+  <script>
+
+    Polymer('core-xhr', {
+
+      /**
+       * Sends a HTTP request to the server and returns the XHR object.
+       *
+       * @method request
+       * @param {Object} inOptions
+       *    @param {String} inOptions.url The url to which the request is sent.
+       *    @param {String} inOptions.method The HTTP method to use, default is GET.
+       *    @param {boolean} inOptions.sync By default, all requests are sent asynchronously. To send synchronous requests, set to true.
+       *    @param {Object} inOptions.params Data to be sent to the server.
+       *    @param {Object} inOptions.body The content for the request body for POST method.
+       *    @param {Object} inOptions.headers HTTP request headers.
+       *    @param {String} inOptions.responseType The response type. Default is 'text'.
+       *    @param {boolean} inOptions.withCredentials Whether or not to send credentials on the request. Default is false.
+       *    @param {Object} inOptions.callback Called when request is completed.
+       * @returns {Object} XHR object.
+       */
+      request: function(options) {
+        var xhr = new XMLHttpRequest();
+        var url = options.url;
+        var method = options.method || 'GET';
+        var async = !options.sync;
+        //
+        var params = this.toQueryString(options.params);
+        if (params && method == 'GET') {
+          url += (url.indexOf('?') > 0 ? '&' : '?') + params;
+        }
+        var xhrParams = this.isBodyMethod(method) ? (options.body || params) : null;
+        //
+        xhr.open(method, url, async);
+        if (options.responseType) {
+          xhr.responseType = options.responseType;
+        }
+        if (options.withCredentials) {
+          xhr.withCredentials = true;
+        }
+        this.makeReadyStateHandler(xhr, options.callback);
+        this.setRequestHeaders(xhr, options.headers);
+        xhr.send(xhrParams);
+        if (!async) {
+          xhr.onreadystatechange(xhr);
+        }
+        return xhr;
+      },
+    
+      toQueryString: function(params) {
+        var r = [];
+        for (var n in params) {
+          var v = params[n];
+          n = encodeURIComponent(n);
+          r.push(v == null ? n : (n + '=' + encodeURIComponent(v)));
+        }
+        return r.join('&');
+      },
+
+      isBodyMethod: function(method) {
+        return this.bodyMethods[(method || '').toUpperCase()];
+      },
+      
+      bodyMethods: {
+        POST: 1,
+        PUT: 1,
+        PATCH: 1,
+        DELETE: 1
+      },
+
+      makeReadyStateHandler: function(xhr, callback) {
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState == 4) {
+            callback && callback.call(null, xhr.response, xhr);
+          }
+        };
+      },
+
+      setRequestHeaders: function(xhr, headers) {
+        if (headers) {
+          for (var name in headers) {
+            xhr.setRequestHeader(name, headers[name]);
+          }
+        }
+      }
+
+    });
+
+  </script>
+  
+</polymer-element>
+
+<polymer-element name="core-ajax" hidden attributes="url handleAs auto params response error method headers body contentType withCredentials progress loading">
+<script>
+
+  Polymer('core-ajax', {
+    /**
+     * Fired when a response is received.
+     *
+     * @event core-response
+     */
+
+    /**
+     * Fired when an error is received.
+     *
+     * @event core-error
+     */
+
+    /**
+     * Fired whenever a response or an error is received.
+     *
+     * @event core-complete
+     */
+
+    /**
+     * The URL target of the request.
+     *
+     * @attribute url
+     * @type string
+     * @default ''
+     */
+    url: '',
+
+    /**
+     * Specifies what data to store in the `response` property, and
+     * to deliver as `event.response` in `response` events.
+     *
+     * One of:
+     *
+     *    `text`: uses `XHR.responseText`.
+     *
+     *    `xml`: uses `XHR.responseXML`.
+     *
+     *    `json`: uses `XHR.responseText` parsed as JSON.
+     *
+     *    `arraybuffer`: uses `XHR.response`.
+     *
+     *    `blob`: uses `XHR.response`.
+     *
+     *    `document`: uses `XHR.response`.
+     *
+     * @attribute handleAs
+     * @type string
+     * @default 'text'
+     */
+    handleAs: '',
+
+    /**
+     * If true, automatically performs an Ajax request when either `url` or `params` changes.
+     *
+     * @attribute auto
+     * @type boolean
+     * @default false
+     */
+    auto: false,
+
+    /**
+     * Parameters to send to the specified URL, as JSON.
+     *
+     * @attribute params
+     * @type string (JSON)
+     * @default ''
+     */
+    params: '',
+
+    /**
+     * The response for the current request, or null if it hasn't
+     * completed yet or the request resulted in error.
+     *
+     * @attribute response
+     * @type Object
+     * @default null
+     */
+    response: null,
+
+    /**
+     * The error for the current request, or null if it hasn't
+     * completed yet or the request resulted in success.
+     *
+     * @attribute error
+     * @type Object
+     * @default null
+     */
+    error: null,
+
+    /**
+     * Whether the current request is currently loading.
+     *
+     * @attribute loading
+     * @type boolean
+     * @default false
+     */
+    loading: false,
+
+    /**
+     * The progress of the current request.
+     *
+     * @attribute progress
+     * @type {loaded: number, total: number, lengthComputable: boolean}
+     * @default {}
+     */
+    progress: null,
+
+    /**
+     * The HTTP method to use such as 'GET', 'POST', 'PUT', or 'DELETE'.
+     * Default is 'GET'.
+     *
+     * @attribute method
+     * @type string
+     * @default ''
+     */
+    method: '',
+
+    /**
+     * HTTP request headers to send.
+     *
+     * Example:
+     *
+     *     <core-ajax
+     *         auto
+     *         url="http://somesite.com"
+     *         headers='{"X-Requested-With": "XMLHttpRequest"}'
+     *         handleAs="json"
+     *         on-core-response="{{handleResponse}}"></core-ajax>
+     *
+     * @attribute headers
+     * @type Object
+     * @default null
+     */
+    headers: null,
+
+    /**
+     * Optional raw body content to send when method === "POST".
+     *
+     * Example:
+     *
+     *     <core-ajax method="POST" auto url="http://somesite.com"
+     *         body='{"foo":1, "bar":2}'>
+     *     </core-ajax>
+     *
+     * @attribute body
+     * @type Object
+     * @default null
+     */
+    body: null,
+
+    /**
+     * Content type to use when sending data.
+     *
+     * @attribute contentType
+     * @type string
+     * @default 'application/x-www-form-urlencoded'
+     */
+    contentType: 'application/x-www-form-urlencoded',
+
+    /**
+     * Set the withCredentials flag on the request.
+     *
+     * @attribute withCredentials
+     * @type boolean
+     * @default false
+     */
+    withCredentials: false,
+
+    /**
+     * Additional properties to send to core-xhr.
+     *
+     * Can be set to an object containing default properties
+     * to send as arguments to the `core-xhr.request()` method
+     * which implements the low-level communication.
+     *
+     * @property xhrArgs
+     * @type Object
+     * @default null
+     */
+    xhrArgs: null,
+
+    created: function() {
+      this.progress = {};
+    },
+
+    ready: function() {
+      this.xhr = document.createElement('core-xhr');
+    },
+
+    receive: function(response, xhr) {
+      if (this.isSuccess(xhr)) {
+        this.processResponse(xhr);
+      } else {
+        this.processError(xhr);
+      }
+      this.complete(xhr);
+    },
+
+    isSuccess: function(xhr) {
+      var status = xhr.status || 0;
+      return !status || (status >= 200 && status < 300);
+    },
+
+    processResponse: function(xhr) {
+      var response = this.evalResponse(xhr);
+      if (xhr === this.activeRequest) {
+        this.response = response;
+      }
+      this.fire('core-response', {response: response, xhr: xhr});
+    },
+
+    processError: function(xhr) {
+      var response = xhr.status + ': ' + xhr.responseText;
+      if (xhr === this.activeRequest) {
+        this.error = response;
+      }
+      this.fire('core-error', {response: response, xhr: xhr});
+    },
+
+    processProgress: function(progress, xhr) {
+      if (xhr !== this.activeRequest) {
+        return;
+      }
+      // We create a proxy object here because these fields
+      // on the progress event are readonly properties, which
+      // causes problems in common use cases (e.g. binding to
+      // <paper-progress> attributes).
+      var progressProxy = {
+        lengthComputable: progress.lengthComputable,
+        loaded: progress.loaded,
+        total: progress.total
+      }
+      this.progress = progressProxy;
+    },
+
+    complete: function(xhr) {
+      if (xhr === this.activeRequest) {
+        this.loading = false;
+      }
+      this.fire('core-complete', {response: xhr.status, xhr: xhr});
+    },
+
+    evalResponse: function(xhr) {
+      return this[(this.handleAs || 'text') + 'Handler'](xhr);
+    },
+
+    xmlHandler: function(xhr) {
+      return xhr.responseXML;
+    },
+
+    textHandler: function(xhr) {
+      return xhr.responseText;
+    },
+
+    jsonHandler: function(xhr) {
+      var r = xhr.responseText;
+      try {
+        return JSON.parse(r);
+      } catch (x) {
+        console.warn('core-ajax caught an exception trying to parse response as JSON:');
+        console.warn('url:', this.url);
+        console.warn(x);
+        return r;
+      }
+    },
+
+    documentHandler: function(xhr) {
+      return xhr.response;
+    },
+
+    blobHandler: function(xhr) {
+      return xhr.response;
+    },
+
+    arraybufferHandler: function(xhr) {
+      return xhr.response;
+    },
+
+    urlChanged: function() {
+      if (!this.handleAs) {
+        var ext = String(this.url).split('.').pop();
+        switch (ext) {
+          case 'json':
+            this.handleAs = 'json';
+            break;
+        }
+      }
+      this.autoGo();
+    },
+
+    paramsChanged: function() {
+      this.autoGo();
+    },
+
+    bodyChanged: function() {
+      this.autoGo();
+    },
+
+    autoChanged: function() {
+      this.autoGo();
+    },
+
+    // TODO(sorvell): multiple side-effects could call autoGo
+    // during one micro-task, use a job to have only one action
+    // occur
+    autoGo: function() {
+      if (this.auto) {
+        this.goJob = this.job(this.goJob, this.go, 0);
+      }
+    },
+
+    /**
+     * Performs an Ajax request to the specified URL.
+     *
+     * @method go
+     */
+    go: function() {
+      var args = this.xhrArgs || {};
+      // TODO(sjmiles): we may want XHR to default to POST if body is set
+      args.body = this.body || args.body;
+      args.params = this.params || args.params;
+      if (args.params && typeof(args.params) == 'string') {
+        args.params = JSON.parse(args.params);
+      }
+      args.headers = this.headers || args.headers || {};
+      if (args.headers && typeof(args.headers) == 'string') {
+        args.headers = JSON.parse(args.headers);
+      }
+      var hasContentType = Object.keys(args.headers).some(function (header) {
+        return header.toLowerCase() === 'content-type';
+      });
+      if (!hasContentType && this.contentType) {
+        args.headers['Content-Type'] = this.contentType;
+      }
+      if (this.handleAs === 'arraybuffer' || this.handleAs === 'blob' ||
+          this.handleAs === 'document') {
+        args.responseType = this.handleAs;
+      }
+      args.withCredentials = this.withCredentials;
+      args.callback = this.receive.bind(this);
+      args.url = this.url;
+      args.method = this.method;
+
+      this.response = this.error = this.progress = null;
+      this.activeRequest = args.url && this.xhr.request(args);
+      if (this.activeRequest) {
+        this.loading = true;
+        var activeRequest = this.activeRequest;
+        // IE < 10 doesn't support progress events.
+        if ('onprogress' in activeRequest) {
+          this.activeRequest.addEventListener(
+              'progress',
+              function(progress) {
+                this.processProgress(progress, activeRequest);
+              }.bind(this), false);
+        } else {
+          this.progress = {
+            lengthComputable: false,
+          }
+        }
+      }
+      return this.activeRequest;
+    }
+
+  });
+
+</script>
+</polymer-element>
+
+
+<polymer-element name="grid-cell" on-click="{{cellClicked}}" on-dblclick="{{cellDoubleClicked}}">
+  
+  <template>
+    <content></content>
+  </template>
+  
+</polymer-element>
+
+<polymer-element name="grid-header" on-click="{{headerClicked}}" on-dblclick="{{headerDoubleClicked}}">
+  
+  <template>
+    <content></content>
+  </template>
+  
+</polymer-element>
+
+<polymer-element name="grid-sort-header" attributes="col direction sortprop active" on-click="{{ toggleDirection }}">
+
+  <template>
+    <content></content>  
+    <content select="[sort-icon]"></content>  
+  </template>
+
+</polymer-element>
+
+<polymer-element name="grid-sort-icon" attributes="direction">  
+  
+  <template>    
+    <style>:host {
+  display: block;
+}
+[hide] {
+  display: none;
+}
+grid-header {
+  text-transform: capitalize;
+  font-weight: bold;
+}
+grid {
+  display: block;
+  height: 100%;
+  font-family: arial;
+  border: solid 1px #e2e2e2;
+}
+grid grid-body {
+  display: block;
+}
+grid grid-row {
+  display: block;
+  box-sizing: border-box;
+  border: solid 1px #e2e2e2;
+  border-top: none;
+}
+grid grid-cell {
+  display: block;
+  padding: 10px 5px 10px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+grid grid-cell:hover {
+  border-radius: 5px;
+  z-index: 9800;
+}
+grid grid-cell {
+  height: 100%;
+}
+grid-header /deep/ grid-sort-header {
+  display: flex;
+  justify-content: space-between;
+}
+grid-header /deep/ grid-header-item {
+  display: block;
+  padding: 10px 5px 10px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+grid-header /deep/ grid-header-item:hover {
+  border-radius: 5px;
+  z-index: 9800;
+}
+core-list {
+  height: 100%;
+}
+grid-sort-icon {
+  float: right;
+}
+[sort-desc]:before {
+  content: "\25be";
+  cursor: pointer;
+}
+[sort-asc]:before {
+  -webkit-transform: rotate(180deg);
+  -moz-transform: rotate(180deg);
+  -o-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+  content: "\25be";
+  display: inline-block;
+  cursor: pointer;
+}
+[sort]:before {
+  content: "\25be";
+  cursor: pointer;
+}
+</style>    
+    <icon sort-asc="" hide?="{{ direction != &apos;asc&apos; }}" title="Click to sort descending"></icon>
+    <icon sort-desc="" hide?="{{ direction != &apos;desc&apos; }}" title="Click to sort ascending"></icon>
+    <icon sort="" hide?="{{ direction }}" title="Click to sort"></icon>
+  </template>
+
+</polymer-element>
+
+<polymer-element name="ui-grid" attributes="value sort url rowheight src ignoredcols" on-grid-sort="{{sortColumn}}">
+    
+  <template>
+    <style>:host {
+  display: block;
+}
+[hide] {
+  display: none;
+}
+grid-header {
+  text-transform: capitalize;
+  font-weight: bold;
+}
+grid {
+  display: block;
+  height: 100%;
+  font-family: arial;
+  border: solid 1px #e2e2e2;
+}
+grid grid-body {
+  display: block;
+}
+grid grid-row {
+  display: block;
+  box-sizing: border-box;
+  border: solid 1px #e2e2e2;
+  border-top: none;
+}
+grid grid-cell {
+  display: block;
+  padding: 10px 5px 10px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+grid grid-cell:hover {
+  border-radius: 5px;
+  z-index: 9800;
+}
+grid grid-cell {
+  height: 100%;
+}
+grid-header /deep/ grid-sort-header {
+  display: flex;
+  justify-content: space-between;
+}
+grid-header /deep/ grid-header-item {
+  display: block;
+  padding: 10px 5px 10px 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+grid-header /deep/ grid-header-item:hover {
+  border-radius: 5px;
+  z-index: 9800;
+}
+core-list {
+  height: 100%;
+}
+grid-sort-icon {
+  float: right;
+}
+[sort-desc]:before {
+  content: "\25be";
+  cursor: pointer;
+}
+[sort-asc]:before {
+  -webkit-transform: rotate(180deg);
+  -moz-transform: rotate(180deg);
+  -o-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+  content: "\25be";
+  display: inline-block;
+  cursor: pointer;
+}
+[sort]:before {
+  content: "\25be";
+  cursor: pointer;
+}
+</style>
+
+    <template id="header-default">
+      <grid-header-item flex="">
+        <grid-sort-header sortprop="{{header}}" active="true" col="{{header}}">          
+          <div>{{ header }}</div>
+          <grid-sort-icon sort-icon=""></grid-sort-icon>          
+        </grid-sort-header>
+      </grid-header-item>
+    </template>
+    
+    <template id="row-default">
+      <grid-row horizontal="" layout="" center="">                
+        <template repeat="{{key in model | keys }}">
+          <grid-cell flex="" class="{{key}}">
+            <template ref="column-{{key}}" bind="{{ { model: model, key: key } }}"></template>            
+          </grid-cell>
+        </template>
+      </grid-row>
+    </template>
+
+    <template id="column-default">      
+      {{model[key]}}
+    </template>
+
+    <grid vertical="" layout="">                
+      <grid-header horizontal="" layout="" center="">
+        <template repeat="{{header in headers}}" ref="header-default"></template>        
+      </grid-header> 
+      <grid-body flex="" layout="" vertical="">  
+        <core-list data="{{rows}}" height="{{rowheight}}" flex="">
+          <template ref="row-default"></template>
+        </core-list>              
+      </grid-body>
+    </grid>
+  
+    <core-ajax auto="" url="{{src}}" handleas="json" on-core-response="{{updateValue}}"></core-ajax>
+
+  </template>
+
+</polymer-element>
+
+<script built="/Users/sbazli/github/ui-filtered-grid/node_modules/ui-grid/src/ui-grid.litcoffee">(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+PolymerExpressions.prototype.keys = function(o) {
+  if (!o) {
+    return;
+  }
+  return Object.keys(o);
+};
+
+Polymer('grid-sort-icon', {});
+
+Polymer('grid-cell', {
+  cellClicked: function() {
+    return this.fire('cellclick', this.templateInstance.model);
+  },
+  cellDoubleClicked: function() {
+    return this.fire('celldblclick', this.templateInstance.model);
+  }
+});
+
+Polymer('grid-header', {
+  headerClicked: function() {
+    return this.fire('headerclick', this.templateInstance.model);
+  },
+  headerDoubleClicked: function() {
+    return this.fire('headerdblclick', this.templateInstance.model);
+  }
+});
+
+Polymer('grid-sort-header', {
+  directionChanged: function() {
+    this.applySort();
+    return this.updateIcon();
+  },
+  sortpropChanged: function() {
+    return this.applySort();
+  },
+  colChanged: function() {
+    return this.applySort();
+  },
+  updateIcon: function() {
+    var sortIcon;
+    sortIcon = this.querySelector('[sort-icon]');
+    return sortIcon != null ? sortIcon.setAttribute('direction', this.direction) : void 0;
+  },
+  applySort: function() {
+    var _ref;
+    if (!(((_ref = this.direction) != null ? _ref.length : void 0) && this.sortprop && this.active)) {
+      return;
+    }
+    return this.fire('grid-sort', {
+      direction: this.direction,
+      prop: this.sortprop
+    });
+  },
+  toggleDirection: function(event, detail, element) {
+    this.direction = this.direction === 'asc' ? 'desc' : 'asc';
+    return this.active = true;
+  }
+});
+
+Polymer('ui-grid', {
+  sortFunctions: {
+    asc: function(a, b) {
+      if ((a == null) || a === '') {
+        return 1;
+      }
+      if ((b == null) || b === '') {
+        return -1;
+      }
+      if (typeof a === 'string') {
+        a = a.toLowerCase().trim();
+      }
+      if (typeof b === 'string') {
+        b = b.toLowerCase().trim();
+      }
+      if (a > b) {
+        return 1;
+      }
+      if (a < b) {
+        return -1;
+      }
+      return 0;
+    },
+    desc: function(a, b) {
+      if ((a == null) || a === '') {
+        return 1;
+      }
+      if ((b == null) || b === '') {
+        return -1;
+      }
+      if (typeof a === 'string') {
+        a = a.toLowerCase().trim();
+      }
+      if (typeof b === 'string') {
+        b = b.toLowerCase().trim();
+      }
+      if (a < b) {
+        return 1;
+      }
+      if (a > b) {
+        return -1;
+      }
+      return 0;
+    }
+  },
+  sortChanged: function() {
+    return this.applySort();
+  },
+  rowsChanged: function() {
+    var _ref;
+    this.removeStaleTemplateRefs();
+    this.buildTemplateRefs(this.headers);
+    return this.sort || (this.sort = {
+      direction: 'asc',
+      prop: (_ref = this.headers) != null ? _ref[0] : void 0
+    });
+  },
+  updateValue: function(event) {
+    var res;
+    res = event.detail.response;
+    if (this.transformResponse) {
+      return this.value = this.transformResponse(res);
+    }
+    return this.value = res;
+  },
+  buildRows: function(value, headers) {
+    if (value) {
+      this.fire('gridvaluechanged');
+    }
+    return value;
+  },
+  buildHeaders: function(value) {
+    var headers;
+    headers = value != null ? value.reduce(function(acc, wrapped) {
+      Object.keys(wrapped).forEach(function(k) {
+        return acc[k] = true;
+      });
+      return acc;
+    }, {}) : void 0;
+    return Object.keys(headers || {});
+  },
+  buildTemplateRefs: function() {
+    var overriddenColumns, overrideTemplate, usesDefault, _ref;
+    overrideTemplate = (_ref = this.querySelectorAll('[column-override]')) != null ? _ref.array() : void 0;
+    overriddenColumns = overrideTemplate != null ? overrideTemplate.map(function(t) {
+      return t.getAttribute('name');
+    }) : void 0;
+    if (overrideTemplate != null) {
+      overrideTemplate.forEach((function(_this) {
+        return function(o) {
+          var col, colId, t;
+          col = o.getAttribute('name');
+          colId = "column-" + col;
+          o.setAttribute('id', colId);
+          _this.shadowRoot.appendChild(o);
+          t = _this.shadowRoot.querySelector("#" + colId);
+          return t.setAttribute('removable', '');
+        };
+      })(this));
+    }
+    if (overriddenColumns) {
+      usesDefault = this.headers.filter(function(i) {
+        return overriddenColumns.indexOf(i) < 0;
+      });
+    } else {
+      usesDefault = this.headers;
+    }
+    return usesDefault.forEach((function(_this) {
+      return function(col) {
+        var t;
+        t = document.createElement('template');
+        t.setAttribute('id', "column-" + col);
+        t.setAttribute('removable', '');
+        t.setAttribute('ref', 'column-default');
+        return _this.shadowRoot.appendChild(t);
+      };
+    })(this));
+  },
+  buildDefaultCellRef: function() {
+    var colDefault, headerDefault;
+    colDefault = this.querySelector('[column-default]');
+    if (colDefault) {
+      this.shadowRoot.removeChild(this.$['column-default']);
+      colDefault.setAttribute('id', 'column');
+      this.shadowRoot.appendChild(colDefault);
+    }
+    headerDefault = this.querySelector('[header-default]');
+    if (headerDefault) {
+      this.shadowRoot.removeChild(this.$['header-default']);
+      headerDefault.setAttribute('id', 'header-default');
+      return this.shadowRoot.appendChild(headerDefault);
+    }
+  },
+  removeStaleTemplateRefs: function() {
+    var _ref;
+    return (_ref = this.$['[removable]']) != null ? _ref.array().forEach((function(_this) {
+      return function(t) {
+        return _this.shadowRoot.removeChild(t);
+      };
+    })(this)) : void 0;
+  },
+  sortColumn: function(event, descriptor) {
+    return this.sort = descriptor;
+  },
+  updateHeaders: function() {
+    var sortables, _ref;
+    sortables = (_ref = this.shadowRoot) != null ? _ref.querySelectorAll("grid-sort-header") : void 0;
+    return sortables != null ? sortables.array().forEach((function(_this) {
+      return function(sortable) {
+        if (sortable.col !== _this.sort.prop) {
+          sortable.setAttribute('active', false);
+          return sortable.direction = '';
+        } else {
+          sortable.setAttribute('active', true);
+          return sortable.direction = _this.sort.direction;
+        }
+      };
+    })(this)) : void 0;
+  },
+  applySort: function() {
+    if (!(this.rows && this.sort)) {
+      return;
+    }
+    this.updateHeaders();
+    return this.rows.sort((function(_this) {
+      return function(a, b) {
+        var compare, d, left, right;
+        d = _this.sort;
+        compare = _this.sortFunctions[d.direction];
+        left = _this.propParser(a, d.prop);
+        right = _this.propParser(b, d.prop);
+        return compare(left, right);
+      };
+    })(this));
+  },
+  ready: function() {
+    return this.buildDefaultCellRef();
+  },
+  propParser: function(doc, prop) {
+    return prop.split('.').reduce(function(acc, p) {
+      return acc[p];
+    }, doc);
+  },
+  computed: {
+    rows: 'buildRows(value,headers)',
+    headers: 'buildHeaders(value)'
+  }
+});
+
+
+
+},{}]},{},[1])</script>
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<style shim-shadowdom="">
+/*******************************
+          Flex Layout
+*******************************/
+
+html /deep/ [layout][horizontal], html /deep/ [layout][vertical] {
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+}
+
+html /deep/ [layout][horizontal][inline], html /deep/ [layout][vertical][inline] {
+  display: -ms-inline-flexbox;
+  display: -webkit-inline-flex;
+  display: inline-flex;
+}
+
+html /deep/ [layout][horizontal] {
+  -ms-flex-direction: row;
+  -webkit-flex-direction: row;
+  flex-direction: row;
+}
+
+html /deep/ [layout][horizontal][reverse] {
+  -ms-flex-direction: row-reverse;
+  -webkit-flex-direction: row-reverse;
+  flex-direction: row-reverse;
+}
+
+html /deep/ [layout][vertical] {
+  -ms-flex-direction: column;
+  -webkit-flex-direction: column;
+  flex-direction: column;
+}
+
+html /deep/ [layout][vertical][reverse] {
+  -ms-flex-direction: column-reverse;
+  -webkit-flex-direction: column-reverse;
+  flex-direction: column-reverse;
+}
+
+html /deep/ [layout][wrap] {
+  -ms-flex-wrap: wrap;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+}
+
+html /deep/ [layout][wrap-reverse] {
+  -ms-flex-wrap: wrap-reverse;
+  -webkit-flex-wrap: wrap-reverse;
+  flex-wrap: wrap-reverse;
+}
+
+html /deep/ [flex] {
+  -ms-flex: 1 1 0.000000001px;
+  -webkit-flex: 1;
+  flex: 1;
+  -webkit-flex-basis: 0.000000001px;
+  flex-basis: 0.000000001px;
+}
+
+html /deep/ [vertical][layout] > [flex][auto-vertical], html /deep/ [vertical][layout]::shadow [flex][auto-vertical] {
+  -ms-flex: 1 1 auto;
+  -webkit-flex-basis: auto;
+  flex-basis: auto;
+}
+
+html /deep/ [flex][auto] {
+  -ms-flex: 1 1 auto;
+  -webkit-flex-basis: auto;
+  flex-basis: auto;
+}
+
+html /deep/ [flex][none] {
+  -ms-flex: none;
+  -webkit-flex: none;
+  flex: none;
+}
+
+html /deep/ [flex][one] {
+  -ms-flex: 1;
+  -webkit-flex: 1;
+  flex: 1;
+}
+
+html /deep/ [flex][two] {
+  -ms-flex: 2;
+  -webkit-flex: 2;
+  flex: 2;
+}
+
+html /deep/ [flex][three] {
+  -ms-flex: 3;
+  -webkit-flex: 3;
+  flex: 3;
+}
+
+html /deep/ [flex][four] {
+  -ms-flex: 4;
+  -webkit-flex: 4;
+  flex: 4;
+}
+
+html /deep/ [flex][five] {
+  -ms-flex: 5;
+  -webkit-flex: 5;
+  flex: 5;
+}
+
+html /deep/ [flex][six] {
+  -ms-flex: 6;
+  -webkit-flex: 6;
+  flex: 6;
+}
+
+html /deep/ [flex][seven] {
+  -ms-flex: 7;
+  -webkit-flex: 7;
+  flex: 7;
+}
+
+html /deep/ [flex][eight] {
+  -ms-flex: 8;
+  -webkit-flex: 8;
+  flex: 8;
+}
+
+html /deep/ [flex][nine] {
+  -ms-flex: 9;
+  -webkit-flex: 9;
+  flex: 9;
+}
+
+html /deep/ [flex][ten] {
+  -ms-flex: 10;
+  -webkit-flex: 10;
+  flex: 10;
+}
+
+html /deep/ [flex][eleven] {
+  -ms-flex: 11;
+  -webkit-flex: 11;
+  flex: 11;
+}
+
+html /deep/ [flex][twelve] {
+  -ms-flex: 12;
+  -webkit-flex: 12;
+  flex: 12;
+}
+
+/* alignment in cross axis */
+
+html /deep/ [layout][start] {
+  -ms-flex-align: start;
+  -webkit-align-items: flex-start;
+  align-items: flex-start;
+}
+
+html /deep/ [layout][center], html /deep/ [layout][center-center] {
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+}
+
+html /deep/ [layout][end] {
+  -ms-flex-align: end;
+  -webkit-align-items: flex-end;
+  align-items: flex-end;
+}
+
+/* alignment in main axis */
+
+html /deep/ [layout][start-justified] {
+  -ms-flex-pack: start;
+  -webkit-justify-content: flex-start;
+  justify-content: flex-start;
+}
+
+html /deep/ [layout][center-justified], html /deep/ [layout][center-center] {
+  -ms-flex-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+}
+
+html /deep/ [layout][end-justified] {
+  -ms-flex-pack: end;
+  -webkit-justify-content: flex-end;
+  justify-content: flex-end;
+}
+
+html /deep/ [layout][around-justified] {
+  -ms-flex-pack: distribute;
+  -webkit-justify-content: space-around;
+  justify-content: space-around;
+}
+
+html /deep/ [layout][justified] {
+  -ms-flex-pack: justify;
+  -webkit-justify-content: space-between;
+  justify-content: space-between;
+}
+
+/* self alignment */
+
+html /deep/ [self-start] {
+  -ms-align-self: flex-start;
+  -webkit-align-self: flex-start;
+  align-self: flex-start;
+}
+
+html /deep/ [self-center] {
+  -ms-align-self: center;
+  -webkit-align-self: center;
+  align-self: center;
+}
+
+html /deep/ [self-end] {
+  -ms-align-self: flex-end;
+  -webkit-align-self: flex-end;
+  align-self: flex-end;
+}
+
+html /deep/ [self-stretch] {
+  -ms-align-self: stretch;
+  -webkit-align-self: stretch;
+  align-self: stretch;
+}
+
+/*******************************
+          Other Layout
+*******************************/
+
+html /deep/ [block] {
+  display: block;
+}
+
+/* ie support for hidden */
+html /deep/ [hidden] {
+  display: none !important;
+}
+
+html /deep/ [relative] {
+  position: relative;
+}
+
+html /deep/ [fit] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+body[fullbleed] {
+  margin: 0;
+  height: 100vh;
+}
+
+/*******************************
+            Other
+*******************************/
+
+html /deep/ [segment], html /deep/ segment {
+  display: block;
+  position: relative;
+  -webkit-box-sizing: border-box;
+  -ms-box-sizing: border-box;
+  box-sizing: border-box;
+  margin: 1em 0.5em;
+  padding: 1em;
+  background-color: white;
+  -webkit-box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.1);
+  border-radius: 5px 5px 5px 5px;
+}
+
+</style>
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+
+`core-dropdown` is an element that is initially hidden and is positioned relatively to another
+element, usually the element that triggers the dropdown. The dropdown and the triggering element
+should be children of the same offsetParent, e.g. the same `<div>` with `position: relative`.
+It can be used to implement dropdown menus, menu buttons, etc..
+
+Example:
+
+    <template is="auto-binding">
+      <div relative>
+        <core-icon-button id="trigger" icon="menu"></core-icon-button>
+        <core-dropdown relatedTarget="{{$.trigger}}">
+          <core-menu>
+            <core-item>Cut</core-item>
+            <core-item>Copy</core-item>
+            <core-item>Paste</core-item>
+          </core-menu>
+        </core-dropdown>
+      </div>
+    </template>
+
+Positioning
+-----------
+
+By default, the dropdown is absolutely positioned on top of the `relatedTarget` with the top and
+left edges aligned. The `halign` and `valign` properties controls the various alignments. The size
+of the dropdown is automatically restrained such that it is entirely visible on the screen. Use the
+`margin`
+
+If you need more control over the dropdown's position, use CSS. The `halign` and `valign` properties are
+ignored if the dropdown is positioned with CSS.
+
+Example:
+
+    <style>
+      /* manually position the dropdown below the trigger */
+      core-dropdown {
+        position: absolute;
+        top: 38px;
+        left: 0;
+      }
+    </style>
+
+    <template is="auto-binding">
+      <div relative>
+        <core-icon-button id="trigger" icon="menu"></core-icon-button>
+        <core-dropdown relatedTarget="{{$.trigger}}">
+          <core-menu>
+            <core-item>Cut</core-item>
+            <core-item>Copy</core-item>
+            <core-item>Paste</core-item>
+          </core-menu>
+        </core-dropdown>
+      </div>
+    </template>
+
+The `layered` property
+----------------------
+
+Sometimes you may need to render the dropdown in a separate layer. For example,
+it may be nested inside an element that needs to be `overflow: hidden`, or
+its parent may be overlapped by elements above it in stacking order.
+
+The `layered` property will place the dropdown in a separate layer to ensure
+it appears on top of everything else. Note that this implies the dropdown will
+not scroll with its container.
+
+@group Polymer Core Elements
+@element core-dropdown
+@extends core-overlay
+@homepage github.io
+-->
+<!-- did not import ../polymer/polymer.html-->
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!-- did not import ../polymer/polymer.html-->
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+
+`<core-transition>` is an abstraction of an animation. It is used to implement pluggable
+transitions, for example in `<core-overlay>`. You can extend this class to create a custom
+animation, instantiate it, and import it where you need the animation.
+
+All instances of `<core-transition>` are stored in a single database with `type=transition`.
+For more about the database, please see the documentation for `<core-meta>`.
+
+Each instance of `<core-transition>` objects are shared across all the clients, so you should
+not store state information specific to the animated element in the transition. Rather, store
+it on the element.
+
+Example:
+
+my-transition.html:
+
+    <polymer-element name="my-transition" extends="core-transition">
+        <script>
+            go: function(node) {
+                node.style.transition = 'opacity 1s ease-out';
+                node.style.opacity = 0;
+            }
+        </script>
+    </polymer-element>
+
+    <my-transition id="my-fade-out"></my-transition>
+
+my-transition-demo.html:
+
+    <link href="components/core-meta/core-meta.html" rel="import">
+    <link href="my-transition.html" rel="import">
+
+    <div id="animate-me"></div>
+
+    <script>
+        // Get the core-transition
+        var meta = document.createElement('core-meta');
+        meta.type = 'transition';
+        var transition = meta.byId('my-fade-out');
+
+        // Run the animation
+        var animated = document.getElementById('animate-me');
+        transition.go(animated);
+    </script>
+
+@group Polymer Core Elements
+@element core-transition
+@extends core-meta
+@status beta
+@homepage github.io
+-->
+<!--
+Fired when the animation finishes.
+
+@event core-transitionend
+@param {Object} detail
+@param {Object} detail.node The animated node
+-->
+
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+`core-meta` provides a method of constructing a self-organizing database.
+It is useful to collate element meta-data for things like catalogs and for 
+designer.
+
+Example, an element folder has a `metadata.html` file in it, that contains a 
+`core-meta`, something like this:
+
+    <core-meta id="my-element" label="My Element">
+      <property name="color" value="blue"></property>
+    </core-meta>
+
+An application can import as many of these files as it wants, and then use 
+`core-meta` again to access the collected data.
+
+    <script>
+      var meta = document.createElement('core-meta');
+      console.log(meta.list); // dump a list of all meta-data elements that have been created
+    </script>
+
+Use `byId(id)` to retrive a specific core-meta.
+
+    <script>
+      var meta = document.createElement('core-meta');
+      console.log(meta.byId('my-element'));
+    </script>
+
+By default all meta-data are stored in a single databse.  If your meta-data 
+have different types and want them to be stored separately, use `type` to 
+differentiate them.
+
+Example:
+
+    <core-meta id="x-foo" type="xElt"></core-meta>
+    <core-meta id="x-bar" type="xElt"></core-meta>
+    <core-meta id="y-bar" type="yElt"></core-meta>
+
+    <script>
+      var meta = document.createElement('core-meta');
+      meta.type = 'xElt';
+      console.log(meta.list);
+    </script>
+
+@group Polymer Core Elements
+@element core-meta
+@homepage github.io
+-->
+
+<!-- did not import ../polymer/polymer.html-->
+
+<polymer-element name="core-meta" attributes="label type" hidden>
+<script>
+
+  (function() {
+    
+    var SKIP_ID = 'meta';
+    var metaData = {}, metaArray = {};
+
+    Polymer('core-meta', {
+      
+      /**
+       * The type of meta-data.  All meta-data with the same type with be
+       * stored together.
+       * 
+       * @attribute type
+       * @type string
+       * @default 'default'
+       */
+      type: 'default',
+      
+      alwaysPrepare: true,
+      
+      ready: function() {
+        this.register(this.id);
+      },
+      
+      get metaArray() {
+        var t = this.type;
+        if (!metaArray[t]) {
+          metaArray[t] = [];
+        }
+        return metaArray[t];
+      },
+      
+      get metaData() {
+        var t = this.type;
+        if (!metaData[t]) {
+          metaData[t] = {};
+        }
+        return metaData[t];
+      },
+      
+      register: function(id, old) {
+        if (id && id !== SKIP_ID) {
+          this.unregister(this, old);
+          this.metaData[id] = this;
+          this.metaArray.push(this);
+        }
+      },
+      
+      unregister: function(meta, id) {
+        delete this.metaData[id || meta.id];
+        var i = this.metaArray.indexOf(meta);
+        if (i >= 0) {
+          this.metaArray.splice(i, 1);
+        }
+      },
+      
+      /**
+       * Returns a list of all meta-data elements with the same type.
+       * 
+       * @property list
+       * @type array
+       * @default []
+       */
+      get list() {
+        return this.metaArray;
+      },
+      
+      /**
+       * Retrieves meta-data by ID.
+       *
+       * @method byId
+       * @param {String} id The ID of the meta-data to be returned.
+       * @returns Returns meta-data.
+       */
+      byId: function(id) {
+        return this.metaData[id];
+      }
+      
+    });
+    
+  })();
+  
+</script>
+</polymer-element>
+
+
+<polymer-element name="core-transition" extends="core-meta">
+  
+  <script>
+    Polymer('core-transition', {
+      
+      type: 'transition',
+
+      /**
+       * Run the animation.
+       *
+       * @method go
+       * @param {Node} node The node to apply the animation on
+       * @param {Object} state State info
+       */
+      go: function(node, state) {
+        this.complete(node);
+      },
+
+      /**
+       * Set up the animation. This may include injecting a stylesheet,
+       * applying styles, creating a web animations object, etc.. This
+       *
+       * @method setup
+       * @param {Node} node The animated node
+       */
+      setup: function(node) {
+      },
+
+      /**
+       * Tear down the animation.
+       *
+       * @method teardown
+       * @param {Node} node The animated node
+       */
+      teardown: function(node) {
+      },
+
+      /**
+       * Called when the animation completes. This function also fires the
+       * `core-transitionend` event.
+       *
+       * @method complete
+       * @param {Node} node The animated node
+       */
+      complete: function(node) {
+        this.fire('core-transitionend', null, node);
+      },
+
+      /**
+       * Utility function to listen to an event on a node once.
+       *
+       * @method listenOnce
+       * @param {Node} node The animated node
+       * @param {string} event Name of an event
+       * @param {Function} fn Event handler
+       * @param {Array} args Additional arguments to pass to `fn`
+       */
+      listenOnce: function(node, event, fn, args) {
+        var self = this;
+        var listener = function() {
+          fn.apply(self, args);
+          node.removeEventListener(event, listener, false);
+        }
+        node.addEventListener(event, listener, false);
+      }
+
+    });
+  </script>
+</polymer-element>
+
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!--
+ * @group Polymer Mixins
+-->
+
+<!-- did not import ../polymer/polymer.html-->
+
+<script>
+
+(function(scope) {
+
+/**
+  `Polymer.CoreResizable` and `Polymer.CoreResizer` are a set of mixins that can be used
+  in Polymer elements to coordinate the flow of resize events between "resizers" (elements
+  that control the size or hidden state of their children) and "resizables" (elements that
+  need to be notified when they are resized or un-hidden by their parents in order to take
+  action on their new measurements).
+
+  Elements that perform measurement should add the `Core.Resizable` mixin to their 
+  Polymer prototype definition and listen for the `core-resize` event on themselves.
+  This event will be fired when they become showing after having been hidden,
+  when they are resized explicitly by a `CoreResizer`, or when the window has been resized.
+  Note, the `core-resize` event is non-bubbling.
+
+  `CoreResizable`'s must manually call the `resizableAttachedHandler` from the element's
+  `attached` callback and `resizableDetachedHandler` from the element's `detached`
+  callback.
+
+    @element CoreResizable
+    @status beta
+    @homepage github.io
+*/
+
+  scope.CoreResizable = {
+
+    /**
+     * User must call from `attached` callback
+     *
+     * @method resizableAttachedHandler
+     */
+    resizableAttachedHandler: function(cb) {
+      cb = cb || this._notifyResizeSelf;
+      this.async(function() {
+        var detail = {callback: cb, hasParentResizer: false};
+        this.fire('core-request-resize', detail);
+        if (!detail.hasParentResizer) {
+          this._boundWindowResizeHandler = cb.bind(this);
+          // log('adding window resize handler', null, this);
+          window.addEventListener('resize', this._boundWindowResizeHandler);
+        }
+      }.bind(this));
+    },
+
+    /**
+     * User must call from `detached` callback
+     *
+     * @method resizableDetachedHandler
+     */
+    resizableDetachedHandler: function() {
+      this.fire('core-request-resize-cancel', null, this, false);
+      if (this._boundWindowResizeHandler) {
+        window.removeEventListener('resize', this._boundWindowResizeHandler);
+      }
+    },
+
+    // Private: fire non-bubbling resize event to self; returns whether
+    // preventDefault was called, indicating that children should not
+    // be resized
+    _notifyResizeSelf: function() {
+      return this.fire('core-resize', null, this, false).defaultPrevented;
+    }
+
+  };
+
+/**
+  `Polymer.CoreResizable` and `Polymer.CoreResizer` are a set of mixins that can be used
+  in Polymer elements to coordinate the flow of resize events between "resizers" (elements
+  that control the size or hidden state of their children) and "resizables" (elements that
+  need to be notified when they are resized or un-hidden by their parents in order to take
+  action on their new measurements).
+
+  Elements that cause their children to be resized (e.g. a splitter control) or hide/show
+  their children (e.g. overlay) should add the `Core.CoreResizer` mixin to their 
+  Polymer prototype definition and then call `this.notifyResize()` any time the element
+  resizes or un-hides its children.
+
+  `CoreResizer`'s must manually call the `resizerAttachedHandler` from the element's
+  `attached` callback and `resizerDetachedHandler` from the element's `detached`
+  callback.
+
+  Note: `CoreResizer` extends `CoreResizable`, and can listen for the `core-resize` event
+  on itself if it needs to perform resize work on itself before notifying children.
+  In this case, returning `false` from the `core-resize` event handler (or calling
+  `preventDefault` on the event) will prevent notification of children if required.
+
+  @element CoreResizer
+  @extends CoreResizable
+  @status beta
+  @homepage github.io
+*/
+
+  scope.CoreResizer = Polymer.mixin({
+
+    /**
+     * User must call from `attached` callback
+     *
+     * @method resizerAttachedHandler
+     */
+    resizerAttachedHandler: function() {
+      this.resizableAttachedHandler(this.notifyResize);
+      this._boundResizeRequested = this._boundResizeRequested || this._handleResizeRequested.bind(this);
+      var listener;
+      if (this.resizerIsPeer) {
+        listener = this.parentElement || (this.parentNode && this.parentNode.host);
+        listener._resizerPeers = listener._resizerPeers || [];
+        listener._resizerPeers.push(this);
+      } else {
+        listener = this;
+      }
+      listener.addEventListener('core-request-resize', this._boundResizeRequested);
+      this._resizerListener = listener;
+    },
+
+    /**
+     * User must call from `detached` callback
+     *
+     * @method resizerDetachedHandler
+     */
+    resizerDetachedHandler: function() {
+      this.resizableDetachedHandler();
+      this._resizerListener.removeEventListener('core-request-resize', this._boundResizeRequested);
+    },
+
+    /**
+     * User should call when resizing or un-hiding children
+     *
+     * @method notifyResize
+     */
+    notifyResize: function() {
+      // Notify self
+      if (!this._notifyResizeSelf()) {
+        // Notify requestors if default was not prevented
+        var r = this.resizeRequestors;
+        if (r) {
+          for (var i=0; i<r.length; i++) {
+            var ri = r[i];
+            if (!this.resizerShouldNotify || this.resizerShouldNotify(ri.target)) {
+              // log('notifying resize', null, ri.target, true);
+              ri.callback.apply(ri.target);
+              // logEnd();
+            }
+          }
+        }
+      }
+    },
+
+    /**
+     * User should implement to introduce filtering when notifying children.
+     * Generally, children that are hidden by the CoreResizer (e.g. non-active
+     * pages) need not be notified during resize, since they will be notified
+     * again when becoming un-hidden.
+     *
+     * Return `true` if CoreResizable passed as argument should be notified of
+     * resize.
+     *
+     * @method resizeerShouldNotify
+     * @param {Element} el
+     */
+     // resizeerShouldNotify: function(el) { }  // User to implement if needed
+
+    /**
+     * Set to `true` if the resizer is actually a peer to the elements it
+     * resizes (e.g. splitter); in this case it will listen for resize requests
+     * events from its peers on its parent.
+     *
+     * @property resizerIsPeer
+     * @type Boolean
+     * @default false
+     */
+
+    // Private: Handle requests for resize
+    _handleResizeRequested: function(e) {
+      var target = e.path[0];
+      if ((target == this) || 
+          (target == this._resizerListener) || 
+          (this._resizerPeers && this._resizerPeers.indexOf(target) < 0)) {
+        return;
+      }
+      // log('resize requested', target, this);
+      if (!this.resizeRequestors) {
+        this.resizeRequestors = [];
+      }
+      this.resizeRequestors.push({target: target, callback: e.detail.callback});
+      target.addEventListener('core-request-resize-cancel', this._cancelResizeRequested.bind(this));
+      e.detail.hasParentResizer = true;
+      e.stopPropagation();
+    },
+
+    // Private: Handle cancellation requests for resize
+    _cancelResizeRequested: function(e) {
+      // Exit early if we're already out of the DOM (resizeRequestors will already be null)
+      if (this.resizeRequestors) {
+        for (var i=0; i<this.resizeRequestors.length; i++) {
+          if (this.resizeRequestors[i].target == e.target) {
+            // log('resizeCanceled', e.target, this);
+            this.resizeRequestors.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+
+  }, Polymer.CoreResizable);
+
+  // function prettyName(el) {
+  //   return el.localName + (el.id ? '#' : '') + el.id;
+  // }
+
+  // function log(what, from, to, group) {
+  //   var args = [what];
+  //   if (from) {
+  //     args.push('from ' + prettyName(from));
+  //   }
+  //   if (to) {
+  //     args.push('to ' + prettyName(to));
+  //   }
+  //   if (group) {
+  //     console.group.apply(console, args);
+  //   } else {
+  //     console.log.apply(console, args);
+  //   }
+  // }
+
+  // function logEnd() {
+  //   console.groupEnd();
+  // }
+
+})(Polymer);
+
+</script>
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+
+<!-- did not import ../polymer/polymer.html-->
+
+<polymer-element name="core-key-helper">
+  <script>
+    Polymer('core-key-helper', {
+      ENTER_KEY: 13,
+      ESCAPE_KEY: 27
+    });
+  </script>
+</polymer-element>
+
+<!--
+Copyright (c) 2014 The Polymer Project Authors. All rights reserved.
+This code may only be used under the BSD style license found at http://polymer.github.io/LICENSE.txt
+The complete set of authors may be found at http://polymer.github.io/AUTHORS.txt
+The complete set of contributors may be found at http://polymer.github.io/CONTRIBUTORS.txt
+Code distributed by Google as part of the polymer project is also
+subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
+-->
+<!-- did not import ../polymer/polymer.html-->
+
+<polymer-element name="core-overlay-layer">
+<template>
+  <style>
+    :host {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1000;
+      display: none;
+    }
+
+    :host(.core-opened) {
+      display: block;
+    }
+  </style>
+  <content></content>
+</template>
+<script>
+(function() {
+
+  Polymer('core-overlay-layer', {
+    publish: {
+      opened: false
+    },
+    openedChanged: function() {
+      this.classList.toggle('core-opened', this.opened);
+    },
+    /**
+     * Adds an element to the overlay layer
+     */
+    addElement: function(element) {
+      if (!this.parentNode) {
+        document.querySelector('body').appendChild(this);
+      }
+      if (element.parentNode !== this) {
+        element.__contents = [];
+        var ip$ = element.querySelectorAll('content');
+        for (var i=0, l=ip$.length, n; (i<l) && (n = ip$[i]); i++) {
+          this.moveInsertedElements(n);
+          this.cacheDomLocation(n);
+          n.parentNode.removeChild(n);
+          element.__contents.push(n);
+        }
+        this.cacheDomLocation(element);
+        this.updateEventController(element);
+        var h = this.makeHost();
+        h.shadowRoot.appendChild(element);
+        element.__host = h;
+      }
+    },
+    makeHost: function() {
+      var h = document.createElement('overlay-host');
+      h.createShadowRoot();
+      this.appendChild(h);
+      return h;
+    },
+    moveInsertedElements: function(insertionPoint) {
+      var n$ = insertionPoint.getDistributedNodes();
+      var parent = insertionPoint.parentNode;
+      insertionPoint.__contents = [];
+      for (var i=0, l=n$.length, n; (i<l) && (n=n$[i]); i++) {
+        this.cacheDomLocation(n);
+        this.updateEventController(n);
+        insertionPoint.__contents.push(n);
+        parent.appendChild(n);  
+      }
+    },
+    updateEventController: function(element) {
+      element.eventController = this.element.findController(element);
+    },
+    /**
+     * Removes an element from the overlay layer
+     */
+    removeElement: function(element) {
+      element.eventController = null;
+      this.replaceElement(element);
+      var h = element.__host;
+      if (h) {
+        h.parentNode.removeChild(h);
+      }
+    },
+    replaceElement: function(element) {
+      if (element.__contents) {
+        for (var i=0, c$=element.__contents, c; (c=c$[i]); i++) {
+          this.replaceElement(c);
+        }
+        element.__contents = null;
+      }
+      if (element.__parentNode) {
+        var n = element.__nextElementSibling && element.__nextElementSibling 
+            === element.__parentNode ? element.__nextElementSibling : null;
+        element.__parentNode.insertBefore(element, n);
+      }
+    },
+    cacheDomLocation: function(element) {
+      element.__nextElementSibling = element.nextElementSibling;
+      element.__parentNode = element.parentNode;
+    }
+  });
+  
+})();
+</script>
+</polymer-element>
+
+
+<!--
+The `core-overlay` element displays overlayed on top of other content. It starts
+out hidden and is displayed by setting its `opened` property to true.
+A `core-overlay's` opened state can be toggled by calling the `toggle`
+method.
+
+The `core-overlay` will, by default, show/hide itself when it's opened. The 
+`target` property may be set to another element to cause that element to 
+be shown when the overlay is opened.
+
+It's common to want a `core-overlay` to animate to its opened
+position. The `core-overlay` element uses a `core-transition` to handle
+animation. The default transition is `core-transition-fade` which 
+causes the overlay to fade in when displayed. See 
+<a href="../core-transition/">`core-transition`</a> for more
+information about customizing a `core-overlay's` opening animation. The
+`backdrop` property can be set to true to show a backdrop behind the overlay
+that will darken the rest of the window.
+
+An element that should close the `core-overlay` will automatically
+do so if it's given the `core-overlay-toggle` attribute. This attribute
+can be customized with the `closeAttribute` property. You can also use
+`closeSelector` if more general matching is needed.
+
+By default  `core-overlay` will close whenever the user taps outside it or
+presses the escape key. This behavior can be turned off via the
+`autoCloseDisabled` property.
+
+    <core-overlay>
+      <h2>Dialog</h2>
+      <input placeholder="say something..." autofocus>
+      <div>I agree with this wholeheartedly.</div>
+      <button core-overlay-toggle>OK</button>
+    </core-overlay>
+
+`core-overlay` will automatically size and position itself according to the 
+following rules. The overlay's size is constrained such that it does not
+overflow the screen. This is done by setting maxHeight/maxWidth on the 
+`sizingTarget`. If the `sizingTarget` already has a setting for one of these
+properties, it will not be overridden. The overlay should
+be positioned via css or imperatively using the `core-overlay-position` event.
+If the overlay is not positioned vertically via setting `top` or `bottom`, it
+will be centered vertically. The same is true horizontally via a setting to 
+`left` or `right`. In addition, css `margin` can be used to provide some space
+around the overlay. This can be used to ensure
+that, for example, a drop shadow is always visible around the overlay.
+
+@group Core Elements
+@element core-overlay
+@homepage github.io
+-->
+<!--
+Fired when the `core-overlay`'s `opened` property changes.
+
+@event core-overlay-open
+@param {Object} detail
+@param {Object} detail.opened the opened state
+-->
+<!--
+Fired when the `core-overlay` has completely opened.
+
+@event core-overlay-open-completed
+-->
+<!--
+Fired when the `core-overlay` has completely closed.
+
+@event core-overlay-close-completed
+-->
+<!--
+Fired when the `core-overlay` needs to position itself. Optionally, implement
+in order to position an overlay via code. If the overlay was not otherwise
+positioned, it's important to indicate how the overlay has been positioned by
+setting the `dimensions.position` object. For example, if the overlay has been
+positioned via setting `right` and `top`, set dimensions.position to an
+object like this: `{v: 'top', h: 'right'}`.
+
+@event core-overlay-position
+@param {Object} detail
+@param {Object} detail.target the overlay target
+@param {Object} detail.sizingTarget the overlay sizing target
+@param {Object} detail.opened the opened state
+-->
+<style>
+  .core-overlay-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: black;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .core-overlay-backdrop.core-opened {
+    opacity: 0.6;
+  }
+</style>
+
+<polymer-element name="core-overlay">
+<script>
+(function() {
+
+  Polymer(Polymer.mixin({
+
+    publish: {
+      /**
+       * The target element that will be shown when the overlay is 
+       * opened. If unspecified, the core-overlay itself is the target.
+       *
+       * @attribute target
+       * @type Object
+       * @default the overlay element
+       */
+      target: null,
+
+
+      /**
+       * A `core-overlay`'s size is guaranteed to be 
+       * constrained to the window size. To achieve this, the sizingElement
+       * is sized with a max-height/width. By default this element is the 
+       * target element, but it can be specifically set to a specific element
+       * inside the target if that is more appropriate. This is useful, for 
+       * example, when a region inside the overlay should scroll if needed.
+       *
+       * @attribute sizingTarget
+       * @type Object
+       * @default the target element
+       */
+      sizingTarget: null,
+    
+      /**
+       * Set opened to true to show an overlay and to false to hide it.
+       * A `core-overlay` may be made initially opened by setting its
+       * `opened` attribute.
+       * @attribute opened
+       * @type boolean
+       * @default false
+       */
+      opened: false,
+
+      /**
+       * If true, the overlay has a backdrop darkening the rest of the screen.
+       * The backdrop element is attached to the document body and may be styled
+       * with the class `core-overlay-backdrop`. When opened the `core-opened`
+       * class is applied.
+       *
+       * @attribute backdrop
+       * @type boolean
+       * @default false
+       */    
+      backdrop: false,
+
+      /**
+       * If true, the overlay is guaranteed to display above page content.
+       *
+       * @attribute layered
+       * @type boolean
+       * @default false
+      */
+      layered: false,
+    
+      /**
+       * By default an overlay will close automatically if the user
+       * taps outside it or presses the escape key. Disable this
+       * behavior by setting the `autoCloseDisabled` property to true.
+       * @attribute autoCloseDisabled
+       * @type boolean
+       * @default false
+       */
+      autoCloseDisabled: false,
+
+      /**
+       * By default an overlay will focus its target or an element inside
+       * it with the `autoFocus` attribute. Disable this
+       * behavior by setting the `autoFocusDisabled` property to true.
+       * @attribute autoFocusDisabled
+       * @type boolean
+       * @default false
+       */
+      autoFocusDisabled: false,
+
+      /**
+       * This property specifies an attribute on elements that should
+       * close the overlay on tap. Should not set `closeSelector` if this
+       * is set.
+       *
+       * @attribute closeAttribute
+       * @type string
+       * @default "core-overlay-toggle"
+       */
+      closeAttribute: 'core-overlay-toggle',
+
+      /**
+       * This property specifies a selector matching elements that should
+       * close the overlay on tap. Should not set `closeAttribute` if this
+       * is set.
+       *
+       * @attribute closeSelector
+       * @type string
+       * @default ""
+       */
+      closeSelector: '',
+
+      /**
+       * The transition property specifies a string which identifies a 
+       * <a href="../core-transition/">`core-transition`</a> element that 
+       * will be used to help the overlay open and close. The default
+       * `core-transition-fade` will cause the overlay to fade in and out.
+       *
+       * @attribute transition
+       * @type string
+       * @default 'core-transition-fade'
+       */
+      transition: 'core-transition-fade'
+
+    },
+
+    captureEventName: 'tap',
+    targetListeners: {
+      'tap': 'tapHandler',
+      'keydown': 'keydownHandler',
+      'core-transitionend': 'transitionend'
+    },
+
+    attached: function() {
+      this.resizerAttachedHandler();
+    },
+
+    detached: function() {
+      this.resizerDetachedHandler();
+    },
+
+    resizerShouldNotify: function() {
+      return this.opened;
+    },
+
+    registerCallback: function(element) {
+      this.layer = document.createElement('core-overlay-layer');
+      this.keyHelper = document.createElement('core-key-helper');
+      this.meta = document.createElement('core-transition');
+      this.scrim = document.createElement('div');
+      this.scrim.className = 'core-overlay-backdrop';
+    },
+
+    ready: function() {
+      this.target = this.target || this;
+      // flush to ensure styles are installed before paint
+      Polymer.flush();
+    },
+
+    /** 
+     * Toggle the opened state of the overlay.
+     * @method toggle
+     */
+    toggle: function() {
+      this.opened = !this.opened;
+    },
+
+    /** 
+     * Open the overlay. This is equivalent to setting the `opened`
+     * property to true.
+     * @method open
+     */
+    open: function() {
+      this.opened = true;
+    },
+
+    /** 
+     * Close the overlay. This is equivalent to setting the `opened` 
+     * property to false.
+     * @method close
+     */
+    close: function() {
+      this.opened = false;
+    },
+
+    domReady: function() {
+      this.ensureTargetSetup();
+    },
+
+    targetChanged: function(old) {
+      if (this.target) {
+        // really make sure tabIndex is set
+        if (this.target.tabIndex < 0) {
+          this.target.tabIndex = -1;
+        }
+        this.addElementListenerList(this.target, this.targetListeners);
+        this.target.style.display = 'none';
+        this.target.__overlaySetup = false;
+      }
+      if (old) {
+        this.removeElementListenerList(old, this.targetListeners);
+        var transition = this.getTransition();
+        if (transition) {
+          transition.teardown(old);
+        } else {
+          old.style.position = '';
+          old.style.outline = '';
+        }
+        old.style.display = '';
+      }
+    },
+
+    transitionChanged: function(old) {
+      if (!this.target) {
+        return;
+      }
+      if (old) {
+        this.getTransition(old).teardown(this.target);
+      }
+      this.target.__overlaySetup = false;
+    },
+
+    // NOTE: wait to call this until we're as sure as possible that target
+    // is styled.
+    ensureTargetSetup: function() {
+      if (!this.target || this.target.__overlaySetup) {
+        return;
+      }
+      if (!this.sizingTarget) {
+        this.sizingTarget = this.target;
+      }
+      this.target.__overlaySetup = true;
+      this.target.style.display = '';
+      var transition = this.getTransition();
+      if (transition) {
+        transition.setup(this.target);
+      }
+      var style = this.target.style;
+      var computed = getComputedStyle(this.target);
+      if (computed.position === 'static') {
+        style.position = 'fixed';
+      }
+      style.outline = 'none';
+      style.display = 'none';
+    },
+
+    openedChanged: function() {
+      this.transitioning = true;
+      this.ensureTargetSetup();
+      this.prepareRenderOpened();
+      // async here to allow overlay layer to become visible.
+      this.async(function() {
+        this.target.style.display = '';
+        // force layout to ensure transitions will go
+        this.target.offsetWidth;
+        this.renderOpened();
+      });
+      this.fire('core-overlay-open', this.opened);
+    },
+
+    // tasks which must occur before opening; e.g. making the element visible
+    prepareRenderOpened: function() {
+      if (this.opened) {
+        addOverlay(this);
+      }
+      this.prepareBackdrop();
+      // async so we don't auto-close immediately via a click.
+      this.async(function() {
+        if (!this.autoCloseDisabled) {
+          this.enableElementListener(this.opened, document,
+              this.captureEventName, 'captureHandler', true);
+        }
+      });
+      this.enableElementListener(this.opened, window, 'resize',
+          'resizeHandler');
+
+      if (this.opened) {
+        // force layout so SD Polyfill renders
+        this.target.offsetHeight;
+        this.discoverDimensions();
+        // if we are showing, then take care when positioning
+        this.preparePositioning();
+        this.positionTarget();
+        this.updateTargetDimensions();
+        this.finishPositioning();
+        if (this.layered) {
+          this.layer.addElement(this.target);
+          this.layer.opened = this.opened;
+        }
+      }
+    },
+
+    // tasks which cause the overlay to actually open; typically play an
+    // animation
+    renderOpened: function() {
+      this.notifyResize();
+      var transition = this.getTransition();
+      if (transition) {
+        transition.go(this.target, {opened: this.opened});
+      } else {
+        this.transitionend();
+      }
+      this.renderBackdropOpened();
+    },
+
+    // finishing tasks; typically called via a transition
+    transitionend: function(e) {
+      // make sure this is our transition event.
+      if (e && e.target !== this.target) {
+        return;
+      }
+      this.transitioning = false;
+      if (!this.opened) {
+        this.resetTargetDimensions();
+        this.target.style.display = 'none';
+        this.completeBackdrop();
+        removeOverlay(this);
+        if (this.layered) {
+          if (!currentOverlay()) {
+            this.layer.opened = this.opened;
+          }
+          this.layer.removeElement(this.target);
+        }
+      }
+      this.fire('core-overlay-' + (this.opened ? 'open' : 'close') + 
+          '-completed');
+      this.applyFocus();
+    },
+
+    prepareBackdrop: function() {
+      if (this.backdrop && this.opened) {
+        if (!this.scrim.parentNode) {
+          document.body.appendChild(this.scrim);
+          this.scrim.style.zIndex = currentOverlayZ() - 1;
+        }
+        trackBackdrop(this);
+      }
+    },
+
+    renderBackdropOpened: function() {
+      if (this.backdrop && getBackdrops().length < 2) {
+        this.scrim.classList.toggle('core-opened', this.opened);
+      }
+    },
+
+    completeBackdrop: function() {
+      if (this.backdrop) {
+        trackBackdrop(this);
+        if (getBackdrops().length === 0) {
+          this.scrim.parentNode.removeChild(this.scrim);
+        }
+      }
+    },
+
+    preparePositioning: function() {
+      this.target.style.transition = this.target.style.webkitTransition = 'none';
+      this.target.style.transform = this.target.style.webkitTransform = 'none';
+      this.target.style.display = '';
+    },
+
+    discoverDimensions: function() {
+      if (this.dimensions) {
+        return;
+      }
+      var target = getComputedStyle(this.target);
+      var sizer = getComputedStyle(this.sizingTarget);
+      this.dimensions = {
+        position: {
+          v: target.top !== 'auto' ? 'top' : (target.bottom !== 'auto' ?
+            'bottom' : null),
+          h: target.left !== 'auto' ? 'left' : (target.right !== 'auto' ?
+            'right' : null),
+          css: target.position
+        },
+        size: {
+          v: sizer.maxHeight !== 'none',
+          h: sizer.maxWidth !== 'none'
+        },
+        margin: {
+          top: parseInt(target.marginTop) || 0,
+          right: parseInt(target.marginRight) || 0,
+          bottom: parseInt(target.marginBottom) || 0,
+          left: parseInt(target.marginLeft) || 0
+        }
+      };
+    },
+
+    finishPositioning: function(target) {
+      this.target.style.display = 'none';
+      this.target.style.transform = this.target.style.webkitTransform = '';
+      // force layout to avoid application of transform
+      this.target.offsetWidth;
+      this.target.style.transition = this.target.style.webkitTransition = '';
+    },
+
+    getTransition: function(name) {
+      return this.meta.byId(name || this.transition);
+    },
+
+    getFocusNode: function() {
+      return this.target.querySelector('[autofocus]') || this.target;
+    },
+
+    applyFocus: function() {
+      var focusNode = this.getFocusNode();
+      if (this.opened) {
+        if (!this.autoFocusDisabled) {
+          focusNode.focus();
+        }
+      } else {
+        focusNode.blur();
+        if (currentOverlay() == this) {
+          console.warn('Current core-overlay is attempting to focus itself as next! (bug)');
+        } else {
+          focusOverlay();
+        }
+      }
+    },
+
+    positionTarget: function() {
+      // fire positioning event
+      this.fire('core-overlay-position', {target: this.target,
+          sizingTarget: this.sizingTarget, opened: this.opened});
+      if (!this.dimensions.position.v) {
+        this.target.style.top = '0px';
+      }
+      if (!this.dimensions.position.h) {
+        this.target.style.left = '0px';
+      }
+    },
+
+    updateTargetDimensions: function() {
+      this.sizeTarget();
+      this.repositionTarget();
+    },
+
+    sizeTarget: function() {
+      this.sizingTarget.style.boxSizing = 'border-box';
+      var dims = this.dimensions;
+      var rect = this.target.getBoundingClientRect();
+      if (!dims.size.v) {
+        this.sizeDimension(rect, dims.position.v, 'top', 'bottom', 'Height');
+      }
+      if (!dims.size.h) {
+        this.sizeDimension(rect, dims.position.h, 'left', 'right', 'Width');
+      }
+    },
+
+    sizeDimension: function(rect, positionedBy, start, end, extent) {
+      var dims = this.dimensions;
+      var flip = (positionedBy === end);
+      var m = flip ? start : end;
+      var ws = window['inner' + extent];
+      var o = dims.margin[m] + (flip ? ws - rect[end] : 
+          rect[start]);
+      var offset = 'offset' + extent;
+      var o2 = this.target[offset] - this.sizingTarget[offset];
+      this.sizingTarget.style['max' + extent] = (ws - o - o2) + 'px';
+    },
+
+    // vertically and horizontally center if not positioned
+    repositionTarget: function() {
+      // only center if position fixed.      
+      if (this.dimensions.position.css !== 'fixed') {
+        return; 
+      }
+      if (!this.dimensions.position.v) {
+        var t = (window.innerHeight - this.target.offsetHeight) / 2;
+        t -= this.dimensions.margin.top;
+        this.target.style.top = t + 'px';
+      }
+
+      if (!this.dimensions.position.h) {
+        var l = (window.innerWidth - this.target.offsetWidth) / 2;
+        l -= this.dimensions.margin.left;
+        this.target.style.left = l + 'px';
+      }
+    },
+
+    resetTargetDimensions: function() {
+      if (!this.dimensions || !this.dimensions.size.v) {
+        this.sizingTarget.style.maxHeight = '';  
+        this.target.style.top = '';
+      }
+      if (!this.dimensions || !this.dimensions.size.h) {
+        this.sizingTarget.style.maxWidth = '';  
+        this.target.style.left = '';
+      }
+      this.dimensions = null;
+    },
+
+    tapHandler: function(e) {
+      // closeSelector takes precedence since closeAttribute has a default non-null value.
+      if (e.target &&
+          (this.closeSelector && e.target.matches(this.closeSelector)) ||
+          (this.closeAttribute && e.target.hasAttribute(this.closeAttribute))) {
+        this.toggle();
+      } else {
+        if (this.autoCloseJob) {
+          this.autoCloseJob.stop();
+          this.autoCloseJob = null;
+        }
+      }
+    },
+    
+    // We use the traditional approach of capturing events on document
+    // to to determine if the overlay needs to close. However, due to 
+    // ShadowDOM event retargeting, the event target is not useful. Instead
+    // of using it, we attempt to close asynchronously and prevent the close
+    // if a tap event is immediately heard on the target.
+    // TODO(sorvell): This approach will not work with modal. For
+    // this we need a scrim.
+    captureHandler: function(e) {
+      if (!this.autoCloseDisabled && (currentOverlay() == this)) {
+        this.autoCloseJob = this.job(this.autoCloseJob, function() {
+          this.close();
+        });
+      }
+    },
+
+    keydownHandler: function(e) {
+      if (!this.autoCloseDisabled && (e.keyCode == this.keyHelper.ESCAPE_KEY)) {
+        this.close();
+        e.stopPropagation();
+      }
+    },
+
+    /**
+     * Extensions of core-overlay should implement the `resizeHandler`
+     * method to adjust the size and position of the overlay when the 
+     * browser window resizes.
+     * @method resizeHandler
+     */
+    resizeHandler: function() {
+      this.updateTargetDimensions();
+    },
+
+    // TODO(sorvell): these utility methods should not be here.
+    addElementListenerList: function(node, events) {
+      for (var i in events) {
+        this.addElementListener(node, i, events[i]);
+      }
+    },
+
+    removeElementListenerList: function(node, events) {
+      for (var i in events) {
+        this.removeElementListener(node, i, events[i]);
+      }
+    },
+
+    enableElementListener: function(enable, node, event, methodName, capture) {
+      if (enable) {
+        this.addElementListener(node, event, methodName, capture);
+      } else {
+        this.removeElementListener(node, event, methodName, capture);
+      }
+    },
+
+    addElementListener: function(node, event, methodName, capture) {
+      var fn = this._makeBoundListener(methodName);
+      if (node && fn) {
+        Polymer.addEventListener(node, event, fn, capture);
+      }
+    },
+
+    removeElementListener: function(node, event, methodName, capture) {
+      var fn = this._makeBoundListener(methodName);
+      if (node && fn) {
+        Polymer.removeEventListener(node, event, fn, capture);
+      }
+    },
+
+    _makeBoundListener: function(methodName) {
+      var self = this, method = this[methodName];
+      if (!method) {
+        return;
+      }
+      var bound = '_bound' + methodName;
+      if (!this[bound]) {
+        this[bound] = function(e) {
+          method.call(self, e);
+        };
+      }
+      return this[bound];
+    }
+
+  }, Polymer.CoreResizer));
+
+  // TODO(sorvell): This should be an element with private state so it can
+  // be independent of overlay.
+  // track overlays for z-index and focus managemant
+  var overlays = [];
+  function addOverlay(overlay) {
+    var z0 = currentOverlayZ();
+    overlays.push(overlay);
+    var z1 = currentOverlayZ();
+    if (z1 <= z0) {
+      applyOverlayZ(overlay, z0);
+    }
+  }
+
+  function removeOverlay(overlay) {
+    var i = overlays.indexOf(overlay);
+    if (i >= 0) {
+      overlays.splice(i, 1);
+      setZ(overlay, '');
+    }
+  }
+  
+  function applyOverlayZ(overlay, aboveZ) {
+    setZ(overlay.target, aboveZ + 2);
+  }
+  
+  function setZ(element, z) {
+    element.style.zIndex = z;
+  }
+
+  function currentOverlay() {
+    return overlays[overlays.length-1];
+  }
+  
+  var DEFAULT_Z = 10;
+  
+  function currentOverlayZ() {
+    var z;
+    var current = currentOverlay();
+    if (current) {
+      var z1 = window.getComputedStyle(current.target).zIndex;
+      if (!isNaN(z1)) {
+        z = Number(z1);
+      }
+    }
+    return z || DEFAULT_Z;
+  }
+  
+  function focusOverlay() {
+    var current = currentOverlay();
+    // We have to be careful to focus the next overlay _after_ any current
+    // transitions are complete (due to the state being toggled prior to the
+    // transition). Otherwise, we risk infinite recursion when a transitioning
+    // (closed) overlay becomes the current overlay.
+    //
+    // NOTE: We make the assumption that any overlay that completes a transition
+    // will call into focusOverlay to kick the process back off. Currently:
+    // transitionend -> applyFocus -> focusOverlay.
+    if (current && !current.transitioning) {
+      current.applyFocus();
+    }
+  }
+
+  var backdrops = [];
+  function trackBackdrop(element) {
+    if (element.opened) {
+      backdrops.push(element);
+    } else {
+      var i = backdrops.indexOf(element);
+      if (i >= 0) {
+        backdrops.splice(i, 1);
+      }
+    }
+  }
+
+  function getBackdrops() {
+    return backdrops;
+  }
+})();
+</script>
+</polymer-element>
+
+
+<style shim-shadowdom="">
+  html /deep/ core-dropdown {
+    position: absolute;
+    overflow: auto;
+    background-color: #fff;
+  }
+</style>
+
+<polymer-element name="core-dropdown" extends="core-overlay">
+<script>
+
+(function() {
+
+  function docElem(property) {
+    var t;
+    return ((t = document.documentElement) || (t = document.body.parentNode)) && (typeof t[property] === 'number') ? t : document.body;
+  }
+
+  // View width and height excluding any visible scrollbars
+  // http://www.highdots.com/forums/javascript/faq-topic-how-do-i-296669.html
+  //    1) document.client[Width|Height] always reliable when available, including Safari2
+  //    2) document.documentElement.client[Width|Height] reliable in standards mode DOCTYPE, except for Safari2, Opera<9.5
+  //    3) document.body.client[Width|Height] is gives correct result when #2 does not, except for Safari2
+  //    4) When document.documentElement.client[Width|Height] is unreliable, it will be size of <html> element either greater or less than desired view size
+  //       https://bugzilla.mozilla.org/show_bug.cgi?id=156388#c7
+  //    5) When document.body.client[Width|Height] is unreliable, it will be size of <body> element less than desired view size
+  function viewSize() {
+    // This algorithm avoids creating test page to determine if document.documentElement.client[Width|Height] is greater then view size,
+    // will succeed where such test page wouldn't detect dynamic unreliability,
+    // and will only fail in the case the right or bottom edge is within the width of a scrollbar from edge of the viewport that has visible scrollbar(s).
+    var doc = docElem('clientWidth');
+    var body = document.body;
+    var w, h;
+    return typeof document.clientWidth === 'number' ?
+      {w: document.clientWidth, h: document.clientHeight} :
+      doc === body || (w = Math.max( doc.clientWidth, body.clientWidth )) > self.innerWidth || (h = Math.max( doc.clientHeight, body.clientHeight )) > self.innerHeight ?
+        {w: body.clientWidth, h: body.clientHeight} : {w: w, h: h };
+  }
+
+  Polymer({
+
+    publish: {
+
+      /**
+       * The element associated with this dropdown, usually the element that triggers
+       * the menu. If unset, this property will default to the target's parent node
+       * or shadow host.
+       *
+       * @attribute relatedTarget
+       * @type Node
+       */
+      relatedTarget: null,
+
+      /**
+       * The horizontal alignment of the popup relative to `relatedTarget`. `left`
+       * means the left edges are aligned together. `right` means the right edges
+       * are aligned together.
+       *
+       * @attribute halign
+       * @type 'left' | 'right'
+       * @default 'left'
+       */
+      halign: 'left',
+
+      /**
+       * The vertical alignment of the popup relative to `relatedTarget`. `top` means
+       * the top edges are aligned together. `bottom` means the bottom edges are
+       * aligned together.
+       *
+       * @attribute valign
+       * @type 'top' | 'bottom'
+       * @default 'top'
+       */
+      valign: 'top',
+
+    },
+
+    measure: function() {
+      var target = this.target;
+      // remember position, because core-overlay may have set the property
+      var pos = target.style.position;
+
+      // get the size of the target as if it's positioned in the top left
+      // corner of the screen
+      target.style.position = 'fixed';
+      target.style.left = '0px';
+      target.style.top = '0px';
+
+      var rect = target.getBoundingClientRect();
+
+      target.style.position = pos;
+      target.style.left = null;
+      target.style.top = null;
+
+      return rect;
+    },
+
+    resetTargetDimensions: function() {
+      var dims = this.dimensions;
+      var style = this.target.style;
+      if (dims.position.h_by === this.localName) {
+        style[dims.position.h] = null;
+        dims.position.h_by = null;
+      }
+      if (dims.position.v_by === this.localName) {
+        style[dims.position.v] = null;
+        dims.position.v_by = null;
+      }
+      style.width = null;
+      style.height = null;
+      this.super();
+    },
+
+    positionTarget: function() {
+      if (!this.relatedTarget) {
+        this.relatedTarget = this.target.parentElement || (this.target.parentNode && this.target.parentNode.host);
+        if (!this.relatedTarget) {
+          this.super();
+          return;
+        }
+      }
+
+      // explicitly set width/height, because we don't want it constrained
+      // to the offsetParent
+      var target = this.sizingTarget;
+      var rect = this.measure();
+      target.style.width = Math.ceil(rect.width) + 'px';
+      target.style.height = Math.ceil(rect.height) + 'px';
+
+      if (this.layered) {
+        this.positionLayeredTarget();
+      } else {
+        this.positionNestedTarget();
+      }
+    },
+
+    positionLayeredTarget: function() {
+      var target = this.target;
+      var rect = this.relatedTarget.getBoundingClientRect();
+
+      var dims = this.dimensions;
+      var margin = dims.margin;
+      var vp = viewSize();
+
+      if (!dims.position.h) {
+        if (this.halign === 'right') {
+          target.style.right = vp.w - rect.right - margin.right + 'px';
+          dims.position.h = 'right';
+        } else {
+          target.style.left = rect.left - margin.left + 'px';
+          dims.position.h = 'left';
+        }
+        dims.position.h_by = this.localName;
+      }
+
+      if (!dims.position.v) {
+        if (this.valign === 'bottom') {
+          target.style.bottom = vp.h - rect.bottom - margin.bottom + 'px';
+          dims.position.v = 'bottom';
+        } else {
+          target.style.top = rect.top - margin.top + 'px';
+          dims.position.v = 'top';
+        }
+        dims.position.v_by = this.localName;
+      }
+
+      if (dims.position.h_by || dims.position.v_by) {
+        target.style.position = 'fixed';
+      }
+    },
+
+    positionNestedTarget: function() {
+      var target = this.target;
+      var related = this.relatedTarget;
+
+      var t_op = target.offsetParent;
+      var r_op = related.offsetParent;
+      if (window.ShadowDOMPolyfill) {
+        t_op = wrap(t_op);
+        r_op = wrap(r_op);
+      }
+
+      if (t_op !== r_op && t_op !== related) {
+        console.warn('core-dropdown-overlay: dropdown\'s offsetParent must be the relatedTarget or the relatedTarget\'s offsetParent!');
+      }
+
+      // Don't use CSS to handle halign/valign so we can use
+      // dimensions.position to detect custom positioning
+
+      var dims = this.dimensions;
+      var margin = dims.margin;
+      var inside = t_op === related;
+
+      if (!dims.position.h) {
+        if (this.halign === 'right') {
+          target.style.right = ((inside ? 0 : t_op.offsetWidth - related.offsetLeft - related.offsetWidth) - margin.right) + 'px';
+          dims.position.h = 'right';
+        } else {
+          target.style.left = ((inside ? 0 : related.offsetLeft) - margin.left) + 'px';
+          dims.position.h = 'left';
+        }
+        dims.position.h_by = this.localName;
+      }
+
+      if (!dims.position.v) {
+        if (this.valign === 'bottom') {
+          target.style.bottom = ((inside ? 0 : t_op.offsetHeight - related.offsetTop - related.offsetHeight) - margin.bottom) + 'px';
+          dims.position.v = 'bottom';
+        } else {
+          target.style.top = ((inside ? 0 : related.offsetTop) - margin.top) + 'px';
+          dims.position.v = 'top';
+        }
+        dims.position.v_by = this.localName;
+      }
+    }
+
+  });
+
+})();
+
+</script>
+</polymer-element>
+
+<polymer-element name="ui-pill" attributes="value">
+<template>
+  <style>.transparent,
+[transparent] {
+  background-image: none;
+  background-color: transparent;
+}
+.flat,
+[flat] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.01), rgba(30, 30, 30, 0.02) 80%, rgba(30, 30, 30, 0.01));
+}
+.ultra-dark-tint,
+[ultra-dark-tint] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.85), rgba(30, 30, 30, 0.91) 80%, rgba(30, 30, 30, 0.89));
+}
+.dark-tint,
+[dark-tint] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.61), rgba(30, 30, 30, 0.67) 80%, rgba(30, 30, 30, 0.65));
+}
+.tint,
+[tint] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.33), rgba(30, 30, 30, 0.39) 80%, rgba(30, 30, 30, 0.37));
+}
+.light-tint,
+[light-tint] {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.61), rgba(255, 255, 255, 0.67) 80%, rgba(255, 255, 255, 0.65));
+}
+.invert {
+  -webkit-filter: invert(0.9);
+  filter: invert(0.9);
+}
+.cannot-select-text {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+[offscreen] {
+  transform: translateY(2000em);
+  -webkit-transform: translateY(2000em);
+}
+[border],
+.border {
+  border: 1px solid rgba(30, 30, 30, 0.1);
+}
+.bottom-border {
+  border-bottom: 1px solid rgba(30, 30, 30, 0.1);
+}
+.top-border {
+  border-top: 1px solid rgba(30, 30, 30, 0.1);
+}
+.focused-border {
+  box-shadow: 0px 0px 1px 0px #b1b1b1 inset;
+  -webkit-box-shadow: 0px 0px 1px 0px #b1b1b1 inset;
+}
+.bottom-focused-border {
+  border-bottom: 1px solid #b1b1b1;
+}
+.focused-highlight {
+  box-shadow: 0px 0px 2px -1px #b1b1b1 inset;
+  -webkit-box-shadow: 0px 0px 2px -1px #b1b1b1 inset;
+  background-color: rgba(30, 30, 30, 0.1);
+}
+.active-border {
+  border-top: 0.2em solid #454545;
+}
+border {
+  display: block;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+}
+:host {
+  display: inline-block;
+  box-sizing: border-box;
+  overflow: hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+:host #closer {
+  padding-left: 0.125em;
+}
+:host #closer:before {
+  content: '\2715';
+}
+:host .pill {
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  padding-top: 0.125em;
+  padding-right: 0.125em;
+  padding-bottom: 0.125em;
+  padding-left: 0.125em;
+  border-radius: 2px;
+  vertical-align: middle;
+  background-image: linear-gradient(rgba(30, 30, 30, 0.01), rgba(30, 30, 30, 0.02) 80%, rgba(30, 30, 30, 0.01));
+  border: 1px solid rgba(30, 30, 30, 0.1);
+  transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  -webkit-transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+:host .pill.pressed {
+  transform: scale(0.95, 0.95);
+  -webkit-transform: scale(0.95, 0.95);
+}
+</style>
+
+  <div id="pill" class="pill" horizontal="" layout="" center="">
+    <span id="content" on-mousedown="{{pointerdown}}" on-mouseup="{{pointerup}}">
+      <content></content>
+    </span>
+  	<span id="closer" on-click="{{remove}}"></span>
+  </div>
+
+</template>
+<script built="/Users/sbazli/github/ui-filtered-grid/node_modules/ui-pill/src/ui-pill.litcoffee">(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+Polymer('ui-pill', {
+  remove: function(evt) {
+    var anim, height, width;
+    if (evt != null) {
+      evt.stopPropagation();
+    }
+    width = this.$.pill.offsetWidth;
+    height = this.$.pill.offsetHeight;
+    anim = this.$.pill.animate([
+      {
+        width: width,
+        height: height,
+        transform: 'rotateX(0deg)',
+        offset: 0
+      }, {
+        width: width,
+        height: height,
+        transform: 'rotateX(90deg)',
+        offset: 0.5
+      }, {
+        width: '0',
+        height: height,
+        transform: 'rotateX(90deg)',
+        offset: 1
+      }
+    ], {
+      duration: 300
+    });
+    return anim.onfinish = (function(_this) {
+      return function() {
+        _this.$.pill.classList.add('hide');
+        return _this.fire('remove', _this.templateInstance.model);
+      };
+    })(this);
+  },
+  pointerdown: function() {
+    return this.$.pill.classList.add('pressed');
+  },
+  pointerup: function() {
+    return this.$.pill.classList.remove('pressed');
+  },
+  attached: function() {
+    var anim, height, width;
+    width = this.$.pill.offsetWidth;
+    height = this.$.pill.offsetHeight;
+    return anim = this.$.pill.animate([
+      {
+        width: '0',
+        height: height,
+        transform: 'rotateX(90deg)',
+        offset: 0
+      }, {
+        width: width,
+        height: height,
+        transform: 'rotateX(90deg)',
+        offset: 0.5
+      }, {
+        width: width,
+        height: height,
+        transform: 'rotateX(0deg)',
+        offset: 1
+      }
+    ], {
+      duration: 300
+    });
+  }
+});
+
+
+
+},{}]},{},[1])</script>
+</polymer-element>
+
+<polymer-element name="ui-button" attributes="enabled" on-mousedown="{{pointerdown}}" on-mouseup="{{pointerup}}" on-mouseenter="{{pointerenter}}" on-mouseleave="{{pointerleave}}">
+<template>
+  <style>.transparent,
+[transparent] {
+  background-image: none;
+  background-color: transparent;
+}
+.flat,
+[flat] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.01), rgba(30, 30, 30, 0.02) 80%, rgba(30, 30, 30, 0.01));
+}
+.ultra-dark-tint,
+[ultra-dark-tint] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.85), rgba(30, 30, 30, 0.91) 80%, rgba(30, 30, 30, 0.89));
+}
+.dark-tint,
+[dark-tint] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.61), rgba(30, 30, 30, 0.67) 80%, rgba(30, 30, 30, 0.65));
+}
+.tint,
+[tint] {
+  background-image: linear-gradient(rgba(30, 30, 30, 0.33), rgba(30, 30, 30, 0.39) 80%, rgba(30, 30, 30, 0.37));
+}
+.light-tint,
+[light-tint] {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.61), rgba(255, 255, 255, 0.67) 80%, rgba(255, 255, 255, 0.65));
+}
+.invert {
+  -webkit-filter: invert(0.9);
+  filter: invert(0.9);
+}
+.cannot-select-text {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+[offscreen] {
+  transform: translateY(2000em);
+  -webkit-transform: translateY(2000em);
+}
+.solid.flag:before {
+  font-size: 1.5em;
+  content: "\25a3";
+  font-style: normal;
+}
+.yellow.flag:before {
+  -webkit-text-fill-color: #ffda1f;
+  -webkit-text-stroke: 1px #454545;
+}
+.red.flag:before {
+  -webkit-text-fill-color: #ef272d;
+  -webkit-text-stroke: 1px #454545;
+}
+.green.flag:before {
+  -webkit-text-fill-color: #bbc721;
+  -webkit-text-stroke: 1px #454545;
+}
+.grey.flag:before {
+  -webkit-text-fill-color: #b1b1b1;
+  -webkit-text-stroke: 1px #454545;
+}
+[border],
+.border {
+  border: 1px solid rgba(30, 30, 30, 0.1);
+}
+.bottom-border {
+  border-bottom: 1px solid rgba(30, 30, 30, 0.1);
+}
+.top-border {
+  border-top: 1px solid rgba(30, 30, 30, 0.1);
+}
+.focused-border {
+  box-shadow: 0px 0px 1px 0px #b1b1b1 inset;
+  -webkit-box-shadow: 0px 0px 1px 0px #b1b1b1 inset;
+}
+.bottom-focused-border {
+  border-bottom: 1px solid #b1b1b1;
+}
+.focused-highlight {
+  box-shadow: 0px 0px 2px -1px #b1b1b1 inset;
+  -webkit-box-shadow: 0px 0px 2px -1px #b1b1b1 inset;
+  background-color: rgba(30, 30, 30, 0.1);
+}
+.active-border {
+  border-top: 0.2em solid #454545;
+}
+border {
+  display: block;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+}
+.one-shadow {
+  box-shadow: 1px 1px 1px rgba(30, 30, 30, 0.1);
+  -webkit-box-shadow: 1px 1px 1px rgba(30, 30, 30, 0.1);
+}
+.two-shadow {
+  box-shadow: 2px 2px 2px rgba(30, 30, 30, 0.1);
+  -webkit-box-shadow: 2px 2px 2px rgba(30, 30, 30, 0.1);
+}
+.hover:hover {
+  transform: scale(1.1, 1.1);
+  -webkit-transform: scale(1.1, 1.1);
+}
+.disabled {
+  opacity: 0.33;
+  background: transparent;
+  color: #323232;
+  cursor: default;
+}
+[invisible] {
+  opacity: 0;
+}
+[horizontal][spaced] > *,
+row[spaced] > * {
+  margin-right: 0.5em;
+}
+[vertical][spaced] > *,
+column[spaced] > * {
+  margin-bottom: 0.5em;
+}
+[vertical][spaced] > :last-child,
+column[spaced] > :last-child {
+  margin-bottom: 0;
+}
+[padded] {
+  padding: 0.5em;
+}
+row[padded] {
+  padding: 0;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+}
+row[padded] > * {
+  padding-left: 0.5em;
+}
+column[padded] {
+  padding: 0;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+[centered] {
+  align-items: center;
+}
+container,
+[container] {
+  display: block;
+  max-width: 60em;
+  margin-top: 0;
+  margin-right: auto;
+  margin-bottom: 0;
+  margin-left: auto;
+  overflow: visible;
+}
+box,
+[box] {
+  display: block;
+  padding: 1em;
+  margin-top: 0.5em;
+  margin-right: 0;
+  margin-bottom: 1em;
+  margin-left: 0;
+  border: 1px solid rgba(30, 30, 30, 0.1);
+}
+row {
+  display: flex;
+  flex-direction: row;
+}
+column {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+circle,
+.circle {
+  border-radius: 50%;
+}
+background,
+[background] {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+background[inverted] {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+panel,
+[panel],
+.panel {
+  display: flex;
+  justify-content: center;
+  align-content: center;
+  align-items: center;
+  text-align: center;
+}
+fullscreen,
+[fullscreen],
+[full],
+.full {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 0;
+}
+[fill],
+.fill {
+  display: flex;
+  line-height: 1;
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+leftdock,
+[leftdock] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+}
+stack,
+[stack] {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+stack > :nth-child(2),
+[stack] > :nth-child(2) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+[larger],
+.larger {
+  font-size: 1.5em;
+}
+[smaller],
+.smaller {
+  font-size: 0.62em;
+}
+[invert],
+.invert {
+  -webkit-filter: invert(100%);
+  filter: invert(100%);
+}
+[red],
+.red {
+  color: #ef272d;
+}
+[orange],
+.orange {
+  color: #fc930d;
+}
+[yellow],
+.yellow {
+  color: #ffda1f;
+}
+[green],
+.green {
+  color: #bbc721;
+}
+[blue],
+.blue {
+  color: #0076bc;
+}
+[indigo],
+.indigo {
+  color: #663399;
+}
+[violet],
+.violet {
+  color: #993399;
+}
+.disabler-enabled {
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  -webkit-transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  transform: rotateX(180deg);
+  -webkit-transform: rotateX(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.disabler-disabled {
+  transform: rotateX(0deg);
+  -webkit-transform: rotateX(0deg);
+  background-color: rgba(30, 30, 30, 0.1);
+  background-image: linear-gradient(rgba(30, 30, 30, 0.01), rgba(30, 30, 30, 0.02) 80%, rgba(30, 30, 30, 0.01));
+}
+[clickable] {
+  cursor: pointer;
+}
+icon {
+  display: inline-flex;
+  justify-content: center;
+}
+:host {
+  display: inline-flex;
+  justify-content: center;
+  position: relative;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  -webkit-transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+:host #button {
+  color: #ffffff;
+  background-color: #1e1e1e;
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 0.55em 0.55em;
+  background-image: linear-gradient(rgba(30, 30, 30, 0.01), rgba(30, 30, 30, 0.02) 80%, rgba(30, 30, 30, 0.01));
+  border: 1px solid rgba(30, 30, 30, 0.1);
+  transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  -webkit-transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  cursor: pointer;
+}
+:host #disabler {
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  -webkit-transition: 0.2s cubic-bezier(0.4, 0, 1, 1);
+  transform: rotateX(180deg);
+  -webkit-transform: rotateX(180deg);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+:host([pressed]) {
+  transform: scale(0.95, 0.95);
+  -webkit-transform: scale(0.95, 0.95);
+}
+:host([disabled]) #button {
+  opacity: 0.33;
+  background: transparent;
+  color: #323232;
+  cursor: default;
+}
+:host([minimal]) #button {
+  padding: 0;
+  color: #454545;
+  background-color: transparent;
+  background-image: none;
+  border: none;
+}
+:host([red]) #button {
+  background-color: #ef272d;
+}
+:host([minimal][red]) #button {
+  color: #ef272d;
+  background-color: transparent;
+}
+:host([orange]) #button {
+  background-color: #fc930d;
+}
+:host([minimal][orange]) #button {
+  color: #fc930d;
+  background-color: transparent;
+}
+:host([yellow]) #button {
+  color: #454545;
+  background-color: #ffda1f;
+}
+:host([minimal][yellow]) #button {
+  color: #ffda1f;
+  background-color: transparent;
+}
+:host([green]) #button {
+  background-color: #bbc721;
+}
+:host([minimal][green]) #button {
+  color: #bbc721;
+  background-color: transparent;
+}
+:host([blue]) #button {
+  background-color: #0076bc;
+}
+:host([minimal][blue]) #button {
+  color: #0076bc;
+  background-color: transparent;
+}
+:host([indigo]) #button {
+  background-color: #663399;
+}
+:host([minimal][indigo]) #button {
+  color: #663399;
+  background-color: transparent;
+}
+:host([violet]) #button {
+  background-color: #993399;
+}
+:host([minimal][violet]) #button {
+  color: #993399;
+  background-color: transparent;
+}
+</style>
+  <section id="disabler" on-click="{{supress}}"></section>
+  <section id="button" on-click="{{supress}}" class="{{ {enabled: enabled} | tokenList }}" horizontal="" layout="" centered="">
+    <content></content>
+  </section>
+</template>
+<script built="/Users/sbazli/github/ui-filtered-grid/node_modules/ui-button/src/ui-button.litcoffee">(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+console.log('button up');
+
+Polymer('ui-button', {
+  pointerdown: function() {
+    if (!this.hasAttribute('disabled')) {
+      return this.setAttribute('pressed', '');
+    }
+  },
+  pointerup: function() {
+    return this.removeAttribute('pressed');
+  },
+  supress: function(evt) {
+    if (this.hasAttribute('disabled')) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      evt.stopImmediatePropagation();
+      return false;
+    }
+  },
+  pointerenter: function() {},
+  pointerleave: function() {},
+  created: function() {},
+  ready: function() {},
+  attached: function() {},
+  domReady: function() {},
+  detached: function() {}
+});
+
+
+
+},{}]},{},[1])</script>
+</polymer-element>
+
+
+
+<polymer-element name="filter-header" attributes="headerText">
+  <style>:host {
+  display: block;
+}
+.loading {
+  z-index: 100;
+  background-color: rgba(192, 192, 192, 0);
+  background-image: url(data:image/gif;charset=utf-8;base64,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);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+table-header /deep/ .holder {
+  padding: 5px;
+  background-color: rgba(0, 0, 0, 0.05);
+  min-height: 25px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+table-header /deep/ ui-pill {
+  background: white;
+}
+table-header /deep/ .itemCount {
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  margin-top: auto;
+  margin-bottom: auto;
+  color: #666;
+}
+ui-grid {
+  height: 300px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+ui-grid /deep/ filter-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+ui-grid /deep/ grid-header {
+  background-color: #2196F3;
+  color: white;
+}
+ui-grid /deep/ [sort] {
+  color: #1976D2;
+}
+ui-grid /deep/ grid-row:nth-of-type(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+ui-grid /deep/ grid-sort-icon {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+ui-grid /deep/ [filter] {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+ui-grid /deep/ .headerText {
+  text-align: center;
+}
+table-header /deep/ .persist /deep/ #closer {
+  display: none;
+}
+table-header /deep/ ui-pill {
+  font-weight: 100;
+}
+table-header /deep/ ui-pill[active] {
+  font-weight: 200;
+}
+table-header /deep/ #button {
+  background-color: #2196F3;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+* /deep/ #modal {
+  background: #E6E6E6;
+  padding: 10px;
+  opacity: 1;
+}
+</style>
+  <template>
+    <grid-header-item flex="" class="{{headerText}}">
+      <grid-sort-header sortprop="{{headerText}}" active="true" col="{{headerText}}">
+        <icon id="trigger" filter="" on-click="{{filterOpen}}" relative="" title="Click to filter"><img src="../image/filter.png">
+          <core-dropdown id="modal" relatedtarget="{{$.trigger}}" layered="">
+            <div id="columnToFilter"></div>
+            <input id="filterEntry" autofocus placeholder="Insert Filter..." on-keyup="{{filter}}">
+          </core-dropdown>
+        </icon>
+        <div class="headerText">{{ headerText }}</div>
+        <grid-sort-icon sort-icon=""></grid-sort-icon>
+      </grid-sort-header>
+    </grid-header-item>
+  </template>
+</polymer-element>
+
+<polymer-element name="table-header" attributes="pillList, itemCount">
+  <style>:host {
+  display: block;
+}
+.loading {
+  z-index: 100;
+  background-color: rgba(192, 192, 192, 0);
+  background-image: url(data:image/gif;charset=utf-8;base64,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);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+table-header /deep/ .holder {
+  padding: 5px;
+  background-color: rgba(0, 0, 0, 0.05);
+  min-height: 25px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+table-header /deep/ ui-pill {
+  background: white;
+}
+table-header /deep/ .itemCount {
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  margin-top: auto;
+  margin-bottom: auto;
+  color: #666;
+}
+ui-grid {
+  height: 300px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+ui-grid /deep/ filter-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+ui-grid /deep/ grid-header {
+  background-color: #2196F3;
+  color: white;
+}
+ui-grid /deep/ [sort] {
+  color: #1976D2;
+}
+ui-grid /deep/ grid-row:nth-of-type(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+ui-grid /deep/ grid-sort-icon {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+ui-grid /deep/ [filter] {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+ui-grid /deep/ .headerText {
+  text-align: center;
+}
+table-header /deep/ .persist /deep/ #closer {
+  display: none;
+}
+table-header /deep/ ui-pill {
+  font-weight: 100;
+}
+table-header /deep/ ui-pill[active] {
+  font-weight: 200;
+}
+table-header /deep/ #button {
+  background-color: #2196F3;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+* /deep/ #modal {
+  background: #E6E6E6;
+  padding: 10px;
+  opacity: 1;
+}
+</style>
+  <template>
+    <div horizontal="" layout="" class="holder">
+      <template ref="table-header-prepends" class="prependHolder" bind="{{pillList}}">
+      </template>
+      <div flex="" class="pillHolder">
+        <template repeat="{{pillList}}">
+            <ui-pill class="{{ {persist: persist} | tokenList}}" id="{{id}}" active?="{{active}}" title="Click to {{ {Activate: active == false, Deactivate: active == true} | tokenList}} Filter">{{column}}:{{text}}</ui-pill>
+        </template>
+      </div>
+      <div class="itemCount">
+        Item Count: {{itemCount}}
+      </div>
+    </div>
+  </template>
+</polymer-element>
+
+<polymer-element name="save-to-excel" attributes="data, ignoreFields, trigger">
+  <template>
+    <ui-button on-click="{{generateClick}}">Save To Excel
+  </ui-button></template>
+</polymer-element>
+
+<polymer-element name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}" on-click="{{persistReFilter}}" on-save-to-excel="{{saveToExcel}}">
+  <template>
+    <style>:host {
+  display: block;
+}
+.loading {
+  z-index: 100;
+  background-color: rgba(192, 192, 192, 0);
+  background-image: url(data:image/gif;charset=utf-8;base64,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);
+  background-repeat: no-repeat;
+  background-position: center;
+}
+table-header /deep/ .holder {
+  padding: 5px;
+  background-color: rgba(0, 0, 0, 0.05);
+  min-height: 25px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+table-header /deep/ ui-pill {
+  background: white;
+}
+table-header /deep/ .itemCount {
+  margin-right: 0.5em;
+  margin-left: 0.5em;
+  margin-top: auto;
+  margin-bottom: auto;
+  color: #666;
+}
+ui-grid {
+  height: 300px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+ui-grid /deep/ filter-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+ui-grid /deep/ grid-header {
+  background-color: #2196F3;
+  color: white;
+}
+ui-grid /deep/ [sort] {
+  color: #1976D2;
+}
+ui-grid /deep/ grid-row:nth-of-type(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+ui-grid /deep/ grid-sort-icon {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+ui-grid /deep/ [filter] {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+ui-grid /deep/ .headerText {
+  text-align: center;
+}
+table-header /deep/ .persist /deep/ #closer {
+  display: none;
+}
+table-header /deep/ ui-pill {
+  font-weight: 100;
+}
+table-header /deep/ ui-pill[active] {
+  font-weight: 200;
+}
+table-header /deep/ #button {
+  background-color: #2196F3;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+* /deep/ #modal {
+  background: #E6E6E6;
+  padding: 10px;
+  opacity: 1;
+}
+</style>
+    <div vertical="" layout="">
+      <div>
+        <table-header id="header" flex=""></table-header>
+      </div>
+      <ui-grid class="loading" id="table" rowheight="50">
+        <template header-default="">
+          <filter-header class="{{header}}" headertext="{{header}}"></filter-header>
+        </template>
+      </ui-grid>
+
+    </div>
+  </template>
+</polymer-element>
+
+<script built="/Users/sbazli/github/ui-filtered-grid/src/ui-filtered-grid.litcoffee">(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+Polymer('filter-header', {
+  filterOpen: function(event, detail, element) {
+    var columnName;
+    columnName = this.headerText;
+    event.stopPropagation();
+    return event.path.array().forEach(function(i) {
+      var _ref;
+      if (i.nodeName === 'FILTER-HEADER') {
+        if (((_ref = this.openModal) != null ? _ref.opened : void 0)) {
+          this.openModal.toggle();
+        }
+        i.$.modal.toggle();
+        return this.openModal = i.$.modal;
+      }
+    });
+  },
+  filter: function() {
+    return this.job('filterEntry', function() {
+      var value;
+      value = this.$.filterEntry.value;
+      if (!value.trim()) {
+        return;
+      }
+      this.$.filterEntry.value = "";
+      this.$.modal.toggle();
+      return this.fire('filter-on', {
+        columnName: this.headerText,
+        filterWord: value
+      });
+    }, 500);
+  }
+});
+
+Polymer('table-header', {
+  pillListChanged: function() {
+    var tableHeaderPrepends;
+    tableHeaderPrepends = this.querySelector('[table-header-prepends]');
+    tableHeaderPrepends.setAttribute('id', 'table-header-prepends');
+    if (tableHeaderPrepends) {
+      return this.shadowRoot.appendChild(tableHeaderPrepends);
+    }
+  },
+  ready: function() {
+    return this.itemCount = 0;
+  }
+});
+
+Polymer('save-to-excel', {
+  downloadExcelCsv: function(rows, attachmentFilename) {
+    var a, blob;
+    blob = this.makeExcelCsvBlob(rows);
+    a = document.createElement('a');
+    a.style.display = 'none';
+    a.download = attachmentFilename;
+    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  },
+  makeExcelCsvBlob: function(rows) {
+    return new Blob([this.asUtf16(this.toTsv(rows)).buffer], {
+      type: "text/csv;charset=UTF-8"
+    });
+  },
+  asUtf16: function(str) {
+    var buffer, bufferView, i, val, _i, _ref;
+    buffer = new ArrayBuffer(str.length * 2);
+    bufferView = new Uint16Array(buffer);
+    bufferView[0] = 0xfeff;
+    for (i = _i = 0, _ref = str.length; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
+      val = str.charCodeAt(i);
+      bufferView[i + 1] = val;
+    }
+    return bufferView;
+  },
+  toTsv: function(rows) {
+    var escapeValue;
+    escapeValue = function(val) {
+      if (typeof val === 'string') {
+        return '"' + val.replace(/"/g, '""') + '"';
+      } else if (val != null) {
+        return val;
+      } else {
+        return '';
+      }
+    };
+    return rows.map(function(row) {
+      return row.map(escapeValue).join('\t');
+    }).join('\n') + '\n';
+  },
+  parseData: function(str) {
+    return "\"" + str.replace(/^\s\s*/, "").replace(/\s*\s$/, "").replace(/"/g, "\"\"") + "\"";
+  },
+  trigger: function() {
+    var data, header, ignoreFields;
+    data = [];
+    header = [];
+    ignoreFields = [];
+    this.ignoreFields.split(',').forEach((function(_this) {
+      return function(i) {
+        return ignoreFields.push(i.trim());
+      };
+    })(this));
+    Object.keys(this.data[0]).forEach((function(_this) {
+      return function(i) {
+        if (ignoreFields.indexOf(i) < 0) {
+          return header.push(i);
+        }
+      };
+    })(this));
+    data.push(header);
+    this.data.forEach((function(_this) {
+      return function(i) {
+        var dataobj, key, value;
+        dataobj = [];
+        for (key in i) {
+          value = i[key];
+          if (ignoreFields.indexOf(key) < 0) {
+            dataobj.push(value);
+          }
+        }
+        return data.push(dataobj);
+      };
+    })(this));
+    return this.downloadExcelCsv(data, 'clientcontacts-list.csv');
+  },
+  generateClick: function() {
+    return this.fire('save-to-excel');
+  }
+});
+
+Polymer('ui-filtered-grid', {
+  dataSrcChanged: function() {
+    if (!this.$.table.classList.contains('loading')) {
+      this.$.table.classList.add('loading');
+    }
+    return this.$.table.src = this.dataSrc;
+  },
+  valueChanged: function() {
+    this.$.table.value = this.value;
+    return this.updateHeader();
+  },
+  filterValue: function() {
+    var emptyVal, tempVal, _this;
+    _this = this;
+    tempVal = [];
+    this.value.forEach(function(i) {
+      var matchFound;
+      matchFound = true;
+      _this.filterWords.forEach(function(item) {
+        var temp;
+        if (item.active) {
+          temp = i[item.column];
+          if (typeof temp === 'number') {
+            temp = temp != null ? temp.toString() : void 0;
+          }
+          if (matchFound && (temp != null ? temp.toLowerCase().indexOf(item.text.toLowerCase()) : void 0) > -1) {
+            return matchFound = true;
+          } else {
+            return matchFound = false;
+          }
+        }
+      });
+      if (matchFound) {
+        return tempVal.push(i);
+      }
+    });
+    if (tempVal.length < 1) {
+      emptyVal = {};
+      Object.keys(this.value[0]).forEach(function(key) {
+        return emptyVal[key] = "Not Found";
+      });
+      tempVal.push(emptyVal);
+    }
+    return this.$.table.value = tempVal;
+  },
+  updateHeader: function() {
+    this.$.table.classList.remove('loading');
+    this.filterValue();
+    this.$.header.itemCount = this.$.table.value.length;
+    return this.$.header.pillList = this.filterWords;
+  },
+  updateTable: function() {
+    if (!this.value) {
+      return this.value = this.$.table.value;
+    }
+  },
+  persistReFilter: function(event, detail, element) {
+    var activate, clickedPill;
+    activate = true;
+    clickedPill = event.path.array().filter(function(i) {
+      if (i.nodeName === 'UI-PILL') {
+        return i;
+      }
+    });
+    if (clickedPill.length > 0) {
+      if (clickedPill[0].getAttribute('active') !== null) {
+        clickedPill[0].removeAttribute('active');
+        activate = false;
+      } else {
+        clickedPill[0].setAttribute('active', '');
+        activate = true;
+      }
+      this.filterWords.forEach((function(_this) {
+        return function(i, index) {
+          if (i.id.toString() === clickedPill[0].getAttribute('id')) {
+            return _this.filterWords[index].active = activate;
+          }
+        };
+      })(this));
+      return this.updateHeader();
+    }
+  },
+  filter: function(event, detail, element) {
+    this.filterWords.forEach(function(i) {
+      if (i.column === event.detail.columnName && i.text === event.detail.filterWord) {
+        return false;
+      }
+    });
+    this.filterWords.push({
+      "column": event.detail.columnName,
+      "text": event.detail.filterWord,
+      "id": this.filterWords.length,
+      "persist": false,
+      "active": true
+    });
+    return this.updateHeader();
+  },
+  reFilter: function(event, detail, element) {
+    this.filterWords = this.filterWords.filter(function(item) {
+      if (item.id !== event.detail.id) {
+        return item;
+      }
+    });
+    return this.updateHeader();
+  },
+  saveToExcel: function(event, detail, element) {
+    event.path.array()[0].data = this.$.table.value;
+    return event.path.array()[0].trigger();
+  },
+  ready: function() {
+    var columnOverrides, defFilters, tableHeaderPrepends, _ref;
+    columnOverrides = this.querySelectorAll('[column-override]');
+    columnOverrides.array().forEach((function(_this) {
+      return function(i) {
+        return _this.shadowRoot.querySelector('ui-grid').appendChild(i);
+      };
+    })(this));
+    tableHeaderPrepends = this.querySelector('[table-header-prepends]');
+    this.shadowRoot.querySelector('#header').appendChild(tableHeaderPrepends);
+    columnOverrides.array().forEach((function(_this) {
+      return function(i) {
+        return _this.shadowRoot.querySelector('ui-grid').appendChild(i);
+      };
+    })(this));
+    this.filterWords = [];
+    defFilters = [];
+    if ((_ref = this.defaultFilter) != null) {
+      _ref.split(',').forEach((function(_this) {
+        return function(i) {
+          return defFilters.push(i.trim());
+        };
+      })(this));
+    }
+    if (defFilters != null) {
+      defFilters.forEach((function(_this) {
+        return function(i) {
+          var filterTokens;
+          filterTokens = [];
+          i.split(':').forEach(function(item) {
+            return filterTokens.push(item.trim());
+          });
+          return _this.filterWords.push({
+            "column": filterTokens[0],
+            "text": filterTokens[1],
+            "id": _this.filterWords.length,
+            "persist": filterTokens[2] === 'persist' ? true : false,
+            "active": filterTokens[3] === 'active' ? true : false
+          });
+        };
+      })(this));
+    }
+    if (this.dataSrc) {
+      return this.$.table.src = this.dataSrc;
+    }
+  }
+});
+
+
+
+},{}]},{},[1])</script>

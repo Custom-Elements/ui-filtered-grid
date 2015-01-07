@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <title>ui-filtered-grid</title>
+    <link rel="import" href="node_modules/polymer/polymer.html">
+    <link rel="import" href="build/ui-filtered-grid.html">
+    <style>
+      body {
+        font-family: "Helvetica Neue", "Helvetica", Arial;
+      }
+
+      ui-filtered-grid /deep/ .Given.To.Client {
+        display: none;
+      }
+
+      ui-filtered-grid /deep/ #table {
+        height: 500px;
+      }
+
+      ui-filtered-grid /deep/ .Contact.Id {
+        display: none;
+      }
+
+      ui-filtered-grid /deep/ .User.Primary.Contact {
+        display: none;
+      }
+
+      ui-filtered-grid /deep/ .given:before{
+        content: "\2718";
+        padding-right: 10px;
+        color: red;
+      }
+
+      ui-filtered-grid /deep/ .notGiven:before{
+        content: "\2606";
+        padding-right: 10px;
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="holder">
+      <ui-filtered-grid cmId="662869" dataSrc="http://epiquery.glgroup.com/councilMember/getCouncilMemberClientInterestMatchByCmId.mustache?cmId=662869&userPersonId=715755" defaultFilter = "User Primary Contact: Yes: persist: active">
+        <template table-header-prepends>
+          <save-to-excel id="saveToExcelBtn" ignoreFields="Contact Id, Given To Client, User Primary Contact"></save-to-excel>
+        </template>
+        <template column-override name="Name">
+          <div horizontal layout center>
+            <icon class="{{model['Given To Client'] == 'Yes' ? 'given' : 'notGiven'}}" title="{{ {'Given To Client': model['Given To Client'] == 'Yes', 'Not Given To Client': model['Given To Client'] == 'No'} | tokenList}}">
+            </icon>
+
+            <div flex>
+              <a href="https://c.na12.visual.force.com/apex/VegaLink?ContactVegaId={{model['Contact Id']}}" target="#">
+                {{model['Name']}}
+              </a>
+            </div>
+          </div>
+        </template>
+      </ui-filtered-grid>
+    </div>
+    <script>
+      document.addEventListener('polymer-ready', function() {
+      })
+    </script>
+  </body>
+</html>

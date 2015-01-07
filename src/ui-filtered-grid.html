@@ -1,0 +1,68 @@
+<link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+<link rel="import" href="../node_modules/ui-grid/src/ui-grid.html" />
+<link rel="import" href="../node_modules/polymer/layout.html" />
+<link rel="import" href="../bower_components/core-dropdown/core-dropdown.html" />
+<link rel="import" href="../node_modules/ui-pill/src/ui-pill.html" />
+<link rel="import" href="../node_modules/ui-button/src/ui-button.html" />
+
+
+<polymer-element name="filter-header" attributes="headerText">
+  <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
+  <template>
+    <grid-header-item flex class="{{headerText}}">
+      <grid-sort-header sortprop="{{headerText}}" active="true" col="{{headerText}}">
+        <icon id="trigger" filter on-click="{{filterOpen}}" relative title="Click to filter"><img src="../image/filter.png" />
+          <core-dropdown id="modal" relatedTarget="{{$.trigger}}" layered>
+            <div id="columnToFilter"></div>
+            <input id="filterEntry" autofocus placeholder="Insert Filter..." on-keyup="{{filter}}">
+          </core-dropdown>
+        </icon>
+        <div class="headerText">{{ headerText }}</div>
+        <grid-sort-icon sort-icon></grid-sort-icon>
+      </grid-sort-header>
+    </grid-header-item>
+  </template>
+</polymer-element>
+
+<polymer-element name="table-header" attributes="pillList, itemCount">
+  <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
+  <template>
+    <div horizontal layout class="holder">
+      <template ref="table-header-prepends" class="prependHolder" bind="{{pillList}}">
+      </template>
+      <div flex class="pillHolder">
+        <template repeat="{{pillList}}">
+            <ui-pill class="{{ {persist: persist} | tokenList}}" id="{{id}}" active?="{{active}}" title="Click to {{ {Activate: active == false, Deactivate: active == true} | tokenList}} Filter">{{column}}:{{text}}</ui-pill>
+        </template>
+      </div>
+      <div class="itemCount">
+        Item Count: {{itemCount}}
+      </div>
+    </div>
+  </template>
+</polymer-element>
+
+<polymer-element name="save-to-excel" attributes="data, ignoreFields, trigger">
+  <template>
+    <ui-button on-click="{{generateClick}}">Save To Excel</ui- button>
+  </template>
+</polymer-element>
+
+<polymer-element name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}" on-click="{{persistReFilter}}" on-save-to-excel="{{saveToExcel}}">
+  <template>
+    <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
+    <div vertical layout>
+      <div>
+        <table-header id="header" flex></table-header>
+      </div>
+      <ui-grid class="loading" id="table" rowheight="50">
+        <template header-default>
+          <filter-header class="{{header}}" headerText="{{header}}"></filter-header>
+        </template>
+      </ui-grid>
+
+    </div>
+  </template>
+</polymer-element>
+
+<script src="./ui-filtered-grid.litcoffee"></script>

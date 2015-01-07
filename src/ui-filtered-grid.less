@@ -1,0 +1,96 @@
+:host {
+  display: block;
+}
+
+.loading {
+    z-index: 100;
+    background-color: rgba(192, 192, 192, 0.0);
+    background-image: url("../image/MnyxU.gif");
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+table-header /deep/ .holder {
+	padding: 5px;
+	background-color: rgba(0,0,0,0.05);
+	min-height: 25px;
+	font-weight: 200;
+	font-size: 0.8em;
+}
+
+table-header /deep/ ui-pill {
+	background: white;
+}
+
+table-header /deep/ .itemCount {
+	margin-right: 0.5em;
+  margin-left : 0.5em;
+	margin-top: auto;
+	margin-bottom: auto;
+	color: #666;
+}
+
+ui-grid {
+	height: 300px;
+  font-weight: 200;
+  font-size: 0.8em;
+}
+
+ui-grid /deep/ filter-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+ui-grid /deep/ grid-header {
+  background-color: #2196F3;
+  color: white;
+}
+
+ui-grid /deep/ [sort] {
+  color: #1976D2;
+}
+
+ui-grid /deep/ grid-row:nth-of-type(even) {
+	background: rgba(0,0,0,0.02);
+}
+
+ui-grid /deep/ grid-sort-icon {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+ui-grid /deep/ [filter] {
+  cursor: pointer;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+ui-grid /deep/ .headerText{
+	text-align: center;
+}
+
+table-header /deep/ .persist /deep/ #closer{
+	display: none;
+}
+
+table-header /deep/ ui-pill{
+	font-weight: 100;
+}
+
+table-header /deep/ ui-pill[active]{
+	font-weight: 200;
+}
+
+table-header /deep/ #button{
+  background-color: #2196F3;
+  font-size: 0.8em;
+  cursor: pointer;
+}
+
+* /deep/ #modal {
+	background: #E6E6E6;
+	padding: 10px;
+	opacity: 1;
+}

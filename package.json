@@ -1,0 +1,15 @@
+{
+  "name": "ui-filtered-grid",
+  "version": "0.0.0",
+  "dependencies": {
+    "polymer-build": "0.0.20",
+    "polymer": "git://github.com/custom-elements/polymer#master",
+    "ui-pill": "git://github.com/Custom-Elements/ui-pill.git",
+    "ui-table": "git://github.com/Custom-Elements/ui-table.git",
+    "ui-button": "git://github.com/Custom-Elements/ui-button.git"
+  },
+  "license": "ISC",
+  "scripts": {
+    "test": "polymer-build --exclude-polymer watch . src/ build/"
+  }
+}

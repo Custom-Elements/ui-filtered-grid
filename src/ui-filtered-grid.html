@@ -1,13 +1,20 @@
 <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
+<link rel="import" href="../bower_components/core-dropdown/core-dropdown.html" />
 <link rel="import" href="../node_modules/ui-grid/src/ui-grid.html" />
 <link rel="import" href="../node_modules/polymer/layout.html" />
-<link rel="import" href="../bower_components/core-dropdown/core-dropdown.html" />
 <link rel="import" href="../node_modules/ui-pill/src/ui-pill.html" />
 <link rel="import" href="../node_modules/ui-button/src/ui-button.html" />
 
 
 <polymer-element name="filter-header" attributes="headerText">
   <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
+  <style>
+    html /deep/ core-dropdown{
+      background: #E6E6E6;
+      padding: 10px;
+      opacity: 1;
+    }
+  </style>
   <template>
     <grid-header-item flex class="{{headerText}}">
       <grid-sort-header sortprop="{{headerText}}" active="true" col="{{headerText}}">
@@ -24,15 +31,15 @@
   </template>
 </polymer-element>
 
-<polymer-element name="table-header" attributes="pillList, itemCount">
+<polymer-element name="table-header" attributes="pillList, itemCount, bindPrePends">
   <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
   <template>
     <div horizontal layout class="holder">
-      <template ref="table-header-prepends" class="prependHolder" bind="{{pillList}}">
+      <template bind="{{readyBind}}" ref="table-header-prepends" class="prependHolder">
       </template>
       <div flex class="pillHolder">
         <template repeat="{{pillList}}">
-            <ui-pill class="{{ {persist: persist} | tokenList}}" id="{{id}}" active?="{{active}}" title="Click to {{ {Activate: active == false, Deactivate: active == true} | tokenList}} Filter">{{column}}:{{text}}</ui-pill>
+            <ui-pill class="{{ {persist: persist} | tokenList}}" id="{{id}}">{{column}}:{{text}}</ui-pill>
         </template>
       </div>
       <div class="itemCount">
@@ -42,13 +49,13 @@
   </template>
 </polymer-element>
 
-<polymer-element name="save-to-excel" attributes="data, ignoreFields, trigger">
+<polymer-element name="save-to-excel" attributes="data, ignoreFields, downloadCsv">
   <template>
     <ui-button on-click="{{generateClick}}">Save To Excel</ui- button>
   </template>
 </polymer-element>
 
-<polymer-element name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}" on-click="{{persistReFilter}}" on-save-to-excel="{{saveToExcel}}">
+<polymer-element name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}" on-save-to-excel="{{saveToExcel}}">
   <template>
     <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
     <div vertical layout>

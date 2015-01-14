@@ -37,12 +37,15 @@
 
     Polymer 'table-header',
 
-        pillListChanged: ->
+        bindPrePends: ->
             tableHeaderPrepends = @querySelector('[table-header-prepends]')
             tableHeaderPrepends.setAttribute 'id', 'table-header-prepends'
 
             if tableHeaderPrepends
                 @shadowRoot.appendChild tableHeaderPrepends
+
+        attached: ->
+            @readyBind = true
 
         ready: ->
             @itemCount = 0
@@ -90,7 +93,7 @@
         parseData: (str) ->
             "\"" + str.replace(/^\s\s*/, "").replace(/\s*\s$/, "").replace(/"/g, "\"\"") + "\""
 
-        trigger: ->
+        downloadCsv: ->
             data=[]
             header = []
             ignoreFields = []
@@ -149,16 +152,15 @@
             @value.forEach (i) ->
                 matchFound = true
                 _this.filterWords.forEach (item) ->
-                    if item.active
-                        temp = i[item.column]
+                    temp = i[item.column]
 
-                        if typeof(temp) is 'number'
-                            temp = temp?.toString()
+                    if typeof(temp) is 'number'
+                        temp = temp?.toString()
 
-                        if matchFound and temp?.toLowerCase().indexOf(item.text.toLowerCase()) > -1
-                            matchFound = true
-                        else
-                            matchFound = false
+                    if matchFound and temp?.toLowerCase().indexOf(item.text.toLowerCase()) > -1
+                        matchFound = true
+                    else
+                        matchFound = false
 
                 if matchFound
                     tempVal.push i
@@ -174,32 +176,22 @@
         updateHeader: ->
             @$.table.classList.remove('loading')
             @filterValue()
-            @$.header.itemCount = @$.table.value.length
+            
+            isNull = Object.keys(@$.table.value[0]).every (key) =>
+                if (@$.table.value[0][key] isnt "Not Found")
+                    return false
+                return true
+            
+            if isNull
+                @$.header.itemCount = 0
+            else
+                @$.header.itemCount = @$.table.value.length
+
             @$.header.pillList = @filterWords
 
         updateTable: ->
             if !@value
                 @value = @$.table.value
-
-        persistReFilter: (event, detail, element) ->
-            activate = true
-
-            clickedPill = event.path.array().filter (i) ->
-                if i.nodeName == 'UI-PILL' then return i
-
-            if clickedPill.length > 0
-                if clickedPill[0].getAttribute('active') isnt null
-                    clickedPill[0].removeAttribute('active')
-                    activate = false
-                else
-                    clickedPill[0].setAttribute('active', '')
-                    activate = true
-
-                @filterWords.forEach (i, index) =>
-                    if i.id.toString() == clickedPill[0].getAttribute('id')
-                        @filterWords[index].active = activate
-
-                @updateHeader()
 
         filter: (event, detail, element) ->
             @filterWords.forEach (i) ->
@@ -209,9 +201,7 @@
             @filterWords.push
                 "column": event.detail.columnName,
                 "text": event.detail.filterWord,
-                "id": @filterWords.length,
-                "persist": false,
-                "active": true
+                "id": @filterWords.length
 
             @updateHeader()
 
@@ -225,7 +215,7 @@
 
         saveToExcel: (event, detail, element) ->
             event.path.array()[0].data = @$.table.value
-            event.path.array()[0].trigger()
+            event.path.array()[0].downloadCsv()
 
 ##Polymer Lifecycle
 
@@ -242,6 +232,8 @@
             columnOverrides.array().forEach (i) =>
                 @shadowRoot.querySelector('ui-grid').appendChild i
 
+            @$.header.bindPrePends()
+
             @filterWords = []
 
             defFilters = []
@@ -257,9 +249,7 @@
                 @filterWords.push
                     "column": filterTokens[0],
                     "text": filterTokens[1],
-                    "id": @filterWords.length,
-                    "persist": if filterTokens[2] == 'persist' then true else false,
-                    "active": if filterTokens[3] == 'active' then true else false
+                    "id": @filterWords.length
 
             if @dataSrc
                 @$.table.src = @dataSrc

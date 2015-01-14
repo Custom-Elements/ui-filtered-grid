@@ -11,11 +11,10 @@
 }
 
 table-header /deep/ .holder {
-	padding: 5px;
-	background-color: rgba(0,0,0,0.05);
-	min-height: 25px;
-	font-weight: 200;
-	font-size: 0.8em;
+	padding: 0.5em;
+  background-color: rgba(0,0,0,0.05);
+  align-items: center;
+  font-size: 0.8em;
 }
 
 table-header /deep/ ui-pill {
@@ -23,15 +22,12 @@ table-header /deep/ ui-pill {
 }
 
 table-header /deep/ .itemCount {
-	margin-right: 0.5em;
-  margin-left : 0.5em;
-	margin-top: auto;
-	margin-bottom: auto;
-	color: #666;
+	margin-left : 0.5em;
+  color: #666;
 }
 
 ui-grid {
-	height: 300px;
+	height: 100em;
   font-weight: 200;
   font-size: 0.8em;
 }
@@ -71,26 +67,16 @@ ui-grid /deep/ .headerText{
 	text-align: center;
 }
 
-table-header /deep/ .persist /deep/ #closer{
-	display: none;
-}
-
 table-header /deep/ ui-pill{
-	font-weight: 100;
+	background: white;
 }
 
-table-header /deep/ ui-pill[active]{
-	font-weight: 200;
+table-header /deep/ .pillHolder {
+  margin-left: 0.5em;
 }
 
 table-header /deep/ #button{
   background-color: #2196F3;
-  font-size: 0.8em;
   cursor: pointer;
 }
 
-* /deep/ #modal {
-	background: #E6E6E6;
-	padding: 10px;
-	opacity: 1;
-}

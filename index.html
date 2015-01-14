@@ -40,10 +40,7 @@
   </head>
   <body>
     <div id="holder">
-      <ui-filtered-grid cmId="662869" dataSrc="http://epiquery.glgroup.com/councilMember/getCouncilMemberClientInterestMatchByCmId.mustache?cmId=662869&userPersonId=715755" defaultFilter = "User Primary Contact: Yes: persist: active">
-        <template table-header-prepends>
-          <save-to-excel id="saveToExcelBtn" ignoreFields="Contact Id, Given To Client, User Primary Contact"></save-to-excel>
-        </template>
+      <ui-filtered-grid dataSrc="http://epiquery.glgroup.com/councilMember/getCouncilMemberClientInterestMatchByCmId.mustache?cmId=662869&userPersonId=715755" defaultFilter = "User Primary Contact: Yes: persist: active">
         <template column-override name="Name">
           <div horizontal layout center>
             <template if="{{model['Contact Id'] != 'Not Found'}}">

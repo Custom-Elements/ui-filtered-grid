@@ -49,13 +49,7 @@
   </template>
 </polymer-element>
 
-<polymer-element name="save-to-excel" attributes="data, ignoreFields, downloadCsv">
-  <template>
-    <ui-button on-click="{{generateClick}}">Save To Excel</ui- button>
-  </template>
-</polymer-element>
-
-<polymer-element name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}" on-save-to-excel="{{saveToExcel}}">
+<polymer-element name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}">
   <template>
     <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
     <div vertical layout>

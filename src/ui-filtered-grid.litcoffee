@@ -31,6 +31,17 @@
                     filterWord: value
             , 500
 
+        updateHeaders: (event) -> 
+            sortables = @parentElement.querySelectorAll('filter-header')                   
+            sortables?.array().forEach (i) =>
+                sortable = i.shadowRoot.querySelector('grid-sort-header')
+                if sortable.col != event.detail.prop
+                    sortable.setAttribute 'active', false
+                    sortable.direction = ''  
+                else                    
+                    sortable.setAttribute 'active', true
+                    sortable.direction = event.detail.direction
+
 #table-header
 *TODO* tell me all about your element.
 
@@ -73,12 +84,11 @@
             @updateHeader()
 
         filterValue: () ->
-            _this = this
             tempVal = []
 
-            @value.forEach (i) ->
+            @value.forEach (i) =>
                 matchFound = true
-                _this.filterWords.forEach (item) ->
+                @filterWords.forEach (item) ->
                     temp = i[item.column]
 
                     if typeof(temp) is 'number'
@@ -143,6 +153,9 @@
 ##Polymer Lifecycle
 
         ready: ->
+            if !@height
+                @height = "30em"
+
             columnOverrides = @querySelectorAll('[column-override]')
 
             columnOverrides.array().forEach (i) =>

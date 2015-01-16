@@ -109,6 +109,7 @@
                 tempVal.push emptyVal
 
             @$.table.value = tempVal
+            @filteredValue = tempVal
 
         updateHeader: ->
             @$.table.classList.remove('loading')
@@ -129,6 +130,7 @@
         updateTable: ->
             if !@value
                 @value = @$.table.value
+                @filteredValue = @$.table.value
 
         filter: (event, detail, element) ->
             @filterWords.forEach (i) ->

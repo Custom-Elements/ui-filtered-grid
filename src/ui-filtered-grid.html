@@ -2,6 +2,9 @@
 <link rel="import" href="../node_modules/ui-grid/src/ui-grid.html" />
 <link rel="import" href="../node_modules/polymer/layout.html" />
 <link rel="import" href="../node_modules/ui-pill/src/ui-pill.html" />
+<link rel="stylesheet" type="text/css" href="../node_modules/ui-font-awesome/font-awesome-icons.less" />
+<link rel="stylesheet" type="text/css" href="../node_modules/ui-font-awesome/font-awesome.less" />
+<link rel="stylesheet" type="text/css" href="../node_modules/ui-font-awesome/icons.less" />
 
 
 <polymer-element name="filter-header" attributes="headerText" on-grid-sort="{{updateHeaders}}">
@@ -17,7 +20,7 @@
     <grid-header-item flex class="{{headerText}}">
       <grid-sort-header sortprop="{{headerText}}" col="{{headerText}}">
         <div class="headertextIconContainer">
-          <icon id="trigger" filter on-click="{{filterOpen}}" title="Click to filter"><img src="../image/filter.png" />
+          <icon id="trigger" filter on-click="{{filterOpen}}" title="Click to filter">
             <core-dropdown id="modal" relatedTarget="{{$.trigger}}" layered>
               <div id="columnToFilter"></div>
               <input id="filterEntry" autofocus placeholder="Insert Filter..." on-keyup="{{filter}}">
@@ -52,6 +55,7 @@
 <polymer-element unresolved name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}">
   <template>
     <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
+    
     <div vertical layout>
       <div>
         <table-header id="header" flex></table-header>

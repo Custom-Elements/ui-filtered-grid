@@ -5,7 +5,8 @@
     "polymer": "git://github.com/custom-elements/polymer",
     "polymer-serve": "git://github.com/custom-elements/polymer-serve",
     "ui-pill": "git://github.com/Custom-Elements/ui-pill.git",
-    "ui-table": "git://github.com/Custom-Elements/ui-table.git"
+    "ui-table": "git://github.com/Custom-Elements/ui-table.git",
+    "ui-font-awesome": "git://github.com/Custom-Elements/ui-font-awesome.git"
   },
   "license": "ISC",
   "scripts": {

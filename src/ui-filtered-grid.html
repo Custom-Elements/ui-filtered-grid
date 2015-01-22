@@ -8,7 +8,6 @@
 
 
 <polymer-element name="filter-header" attributes="headerText" on-grid-sort="{{updateHeaders}}">
-  <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
   <style>
     html /deep/ core-dropdown{
       background: #E6E6E6;
@@ -17,6 +16,7 @@
     }
   </style>
   <template>
+    <link rel="stylesheet" type="text/css" href="./filter-header.less">
     <grid-header-item flex class="{{headerText}}">
       <grid-sort-header sortprop="{{headerText}}" col="{{headerText}}">
         <div class="headertextIconContainer">
@@ -35,8 +35,8 @@
 </polymer-element>
 
 <polymer-element name="table-header" attributes="pillList, itemCount, bindPrePends">
-  <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
   <template>
+    <link rel="stylesheet" type="text/css" href="./table-header.less">
     <div horizontal layout class="holder">
       <template bind="{{readyBind}}" ref="table-header-prepends" class="prependHolder">
       </template>
@@ -55,7 +55,7 @@
 <polymer-element unresolved name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height, filteredValue" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}">
   <template>
     <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
-    
+
     <div vertical layout>
       <div>
         <table-header id="header" flex></table-header>

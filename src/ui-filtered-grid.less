@@ -1,108 +1,72 @@
+@import "../node_modules/ui-styles/variables.less";
+
+@padding: 0.8em;
+
 :host {
   display: block;
   height: ~"calc({{height}})";
-}
 
-.loading {
-    z-index: 100;
-    background-color: rgba(192, 192, 192, 0.0);
-    background-image: url("../image/MnyxU.gif");
-    background-repeat: no-repeat;
-    background-position: center;
-}
 
-table-header /deep/ .holder {
-	padding: 0.5em;
-  background-color: rgba(0,0,0,0.05);
-  align-items: center;
-  font-size: 0.8em;
-}
+  .loading {
+      z-index: 100;
+      background-color: rgba(192, 192, 192, 0.0);
+      background-image: url("../image/MnyxU.gif");
+      background-repeat: no-repeat;
+      background-position: center;
+  }
 
-table-header /deep/ ui-pill {
-	background: white;
-}
+  ui-grid {
+  	height: ~"calc({{height}})";
+    font-weight: 200;
+    font-size: 0.8em;
+  }
 
-table-header /deep/ .itemCount {
-	margin-left : 0.5em;
-  color: #666;
-}
+  ui-grid /deep/ grid-header {
+    background-color: #2196F3;
+    color: white;
+  }
 
-ui-grid {
-	height: ~"calc({{height}})";
-  font-weight: 200;
-  font-size: 0.8em;
-}
+  ui-grid /deep/ grid-header-item {
+    padding:@padding;
+  }
 
-ui-grid /deep/ filter-header {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-}
+  ui-grid /deep/ grid-cell {
+    padding:@padding;
+  }
 
-ui-grid /deep/ .headertextIconContainer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+  ui-grid /deep/ grid-row:nth-of-type(even) {
+  	background: rgba(0,0,0,0.02);
+  }
 
-ui-grid /deep/ grid-header {
-  background-color: #2196F3;
-  color: white;
-}
+  ui-grid /deep/ [filter]:before {
+    content: "\f0b0";
+    font-family: FontAwesome;
+    cursor: pointer;
+    margin-top: auto;
+    margin-bottom: auto;
+    zoom: 125%;
+    color: black;
+  }
 
-ui-grid /deep/ grid-row:nth-of-type(even) {
-	background: rgba(0,0,0,0.02);
-}
+  ui-grid /deep/ [sort]:before {
+    content: "\f0dc";
+    font-family: FontAwesome;
+    cursor: pointer;
+    zoom: 125%;
+    color: black;
+  }
 
-ui-grid /deep/ grid-sort-icon {
-  cursor: pointer;
-  margin-top: auto;
-  margin-bottom: auto;
-}
+  ui-grid /deep/ [sort-asc]:before {
+    content: "\f0dd";
+    font-family: FontAwesome;
+    cursor: pointer;
+    zoom: 125%;
+  }
 
-ui-grid /deep/ [filter]:before {
-  content: "\f0b0";
-  font-family: FontAwesome;
-  cursor: pointer;
-  margin-top: auto;
-  margin-bottom: auto;
-  zoom: 125%;
-  color: black;
+  ui-grid /deep/ [sort-desc]:before {
+    content: "\f0dd";
+    font-family: FontAwesome;
+    cursor: pointer;
+    zoom: 125%;
+  }
 }
-
-ui-grid /deep/ [sort]:before {
-  content: "\f0dc";
-  font-family: FontAwesome;
-  cursor: pointer;
-  zoom: 125%;
-  color: black;
-}
-
-ui-grid /deep/ [sort-asc]:before {
-  content: "\f0de";
-  font-family: FontAwesome;
-  transform: rotate(0);
-  cursor: pointer;
-  zoom: 125%;
-}
-
-ui-grid /deep/ [sort-desc]:before {
-  content: "\f0dd";
-  font-family: FontAwesome;
-  cursor: pointer;
-  zoom: 125%;
-}
-
-ui-grid /deep/ #trigger {
-  margin-right: 0.75em;
-}
-
-ui-grid /deep/ .headerText{
-  margin-top: auto;
-  margin-bottom: auto;
-}
-
-table-header /deep/ ui-pill{
-	background: white;
-}
-

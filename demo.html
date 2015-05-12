@@ -11,43 +11,90 @@
       margin: 0px;
       font-family: 'Roboto', sans-serif;
     }
+    ui-filtered-grid /deep/ #prepends{
+      padding-right: 1em;
+    }
   </style>
   <body>
-    <div id="holder">
-      <h1>A filterable grid for you!</h1>
-      <ui-filtered-grid id="table" defaultFilter="e:e10" height="40em">
+    <h1>A (virtualized) filterable grid for you!</h1>
+
+    <section>
+      Using the ui-grid this element afford you the ability to filter on multiple columns along with the ability to add prepends to the table header. This is built on top of the ui-grid element so you get all the benfits of the ui-grid with new additional built in features.
+
+      <br/>
+      <br/>
+
+      Using the following data:
+      <br/>
+      <br/>
+      <script src="https://gist.github.com/sayeefb/5e687edd0a7660663cfb.js"></script>
+      <br/>
+      And this snippet of html and javascript:
+      <br/>
+      <br/>
+      <script src="https://gist.github.com/sayeefb/d3079457ec1251984ef1.js"></script>
+      And Voila!
+      <br/>
+      <br/>
+
+      <ui-filtered-grid defaultFilter="e:e10" height="40em"></ui-filtered-grid>
+    </section>
+
+    <section>
+      <h2>Table Header Prepend Templating</h2>
+
+      Speaking of Table Header Prepends...
+
+      <br/>
+      <br/>
+
+      <script src="https://gist.github.com/sayeefb/801a58fb9e658ef58108.js"></script>
+
+      Presenting Table Header Prepends
+      <br/>
+      <br/>
+      <ui-filtered-grid defaultFilter="e:e10" height="40em">
+        <template table-header-prepends>
+          <div id="prepends">
+            <button>Table Header Prepend</button>
+            <input placeholder="Table Header Prepend"></input>
+          </div>
+        </template>
       </ui-filtered-grid>
-    </div>
+    </section>
   </body>
   <script>
     document.addEventListener('polymer-ready', function() {
-      var table = document.querySelector('#table');
+      var tables = document.querySelectorAll('ui-filtered-grid').array();
 
-      var data = [];
+      tables.forEach(function(table) {
+        var data = [];
 
-      for (var i = 0; i < 1000; i++) {
+        for (var i = 0; i < 1000; i++) {
 
-        var keys = [ 'a', 'b', 'c', 'd', 'e', 'f' ];
-        var row = keys.reduce(function(acc,key,j) {
-          acc[key] = key+i;
-          return acc;
-        },{})
+          var keys = [ 'a', 'b', 'c', 'd', 'e', 'f' ];
+          var row = keys.reduce(function(acc,key,j) {
+            acc[key] = key+i;
+            return acc;
+          },{})
 
-        data.push(row);
-      }
+          data.push(row);
+        }
 
-      table.value = data;
+        table.value = data;
 
-      var events = [
-        'cellclick',
-        'celldblclick',
-        'headerclick',
-        'headerdblclick',
-        'gridvaluechanged'
-      ]
+        var events = [
+          'cellclick',
+          'celldblclick',
+          'headerclick',
+          'headerdblclick',
+          'gridvaluechanged'
+        ]
 
-      events.forEach(function (event) {
-        table.addEventListener(event, function() { console.log(arguments) });
+        events.forEach(function (event) {
+          table.addEventListener(event, function() { console.log(arguments) });
+        });
+
       });
     })
   </script>

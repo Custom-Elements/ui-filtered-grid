@@ -12,7 +12,7 @@
 
             event.stopPropagation()
 
-            event.path.array().forEach (i) ->
+            event.path.forEach (i) ->
                 if i.nodeName == 'FILTER-HEADER'
                     if (@openModal?.opened)
                         @openModal.toggle()
@@ -31,14 +31,14 @@
                     filterWord: value
             , 500
 
-        updateHeaders: (event) -> 
-            sortables = @parentElement.querySelectorAll('filter-header')                   
+        updateHeaders: (event) ->
+            sortables = @parentElement.querySelectorAll('filter-header')
             sortables?.array().forEach (i) =>
                 sortable = i.shadowRoot.querySelector('grid-sort-header')
                 if sortable.col != event.detail.prop
                     sortable.setAttribute 'active', false
-                    sortable.direction = ''  
-                else                    
+                    sortable.direction = ''
+                else
                     sortable.setAttribute 'active', true
                     sortable.direction = event.detail.direction
 
@@ -114,12 +114,12 @@
         updateHeader: ->
             @$.table.classList.remove('loading')
             @filterValue()
-            
+
             isNull = Object.keys(@$.table.value[0]).every (key) =>
                 if (@$.table.value[0][key] isnt "Not Found")
                     return false
                 return true
-            
+
             if isNull
                 @$.header.itemCount = 0
             else

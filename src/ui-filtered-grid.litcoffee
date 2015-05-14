@@ -152,6 +152,9 @@
 
             @updateHeader()
 
+        getSelected: () ->
+            @selection = @shadowRoot.querySelector('ui-grid').selection
+
 ##Polymer Lifecycle
 
         ready: ->

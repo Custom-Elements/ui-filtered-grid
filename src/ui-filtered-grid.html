@@ -52,7 +52,7 @@
   </template>
 </polymer-element>
 
-<polymer-element unresolved name="ui-filtered-grid" attributes="dataSrc, defaultFilter, value, height, filteredValue" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}">
+<polymer-element unresolved name="ui-filtered-grid" attributes="dataSrc defaultFilter value height filteredValue selection multiSelect selectionEnabled" on-filter-on="{{filter}}" on-gridvaluechanged="{{updateTable}}" on-remove="{{reFilter}}" on-core-select="{{getSelected}}">
   <template>
     <link rel="stylesheet" type="text/css" href="./ui-filtered-grid.less">
 
@@ -60,7 +60,7 @@
       <div>
         <table-header id="header" flex></table-header>
       </div>
-      <ui-grid class="loading" id="table" rowheight="50">
+      <ui-grid class="loading" id="table" rowheight="50" selectionEnabled="{{selectionEnabled}}" multiSelect="{{multiSelect}}">
         <template header-default>
           <filter-header class="{{header}}" headerText="{{header}}"></filter-header>
         </template>

@@ -83,6 +83,9 @@
             @$.table.value = @value
             @updateHeader()
 
+        clearSelection : () ->
+            @$.table.clearSelection()
+
         filterValue: () ->
             tempVal = []
 
@@ -152,8 +155,8 @@
 
             @updateHeader()
 
-        getSelected: () ->
-            @selection = @shadowRoot.querySelector('ui-grid').selection
+        getSelection: () ->
+            @shadowRoot.querySelector('ui-grid').getSelection()
 
 ##Polymer Lifecycle
 

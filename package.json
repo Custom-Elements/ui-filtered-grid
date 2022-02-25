@@ -2,12 +2,12 @@
   "name": "ui-filtered-grid",
   "version": "0.0.0",
   "dependencies": {
-    "polymer": "git://github.com/custom-elements/polymer",
+    "polymer": "git+https://github.com/custom-elements/polymer",
     "polymer-serve": "^0.0.30",
-    "ui-pill": "git://github.com/Custom-Elements/ui-pill.git",
-    "ui-grid": "git://github.com/Custom-Elements/ui-grid.git",
+    "ui-pill": "git+https://github.com/Custom-Elements/ui-pill.git",
+    "ui-grid": "git+https://github.com/Custom-Elements/ui-grid.git",
     "ui-fonts": "^0.0.1",
-    "ui-styles": "git://github.com/Custom-Elements/ui-styles.git"
+    "ui-styles": "git+https://github.com/Custom-Elements/ui-styles.git"
   },
   "license": "ISC",
   "scripts": {

@@ -12,7 +12,7 @@
     "tag": "0.5.2",
     "commit": "427829ab8b58454987f27814921d504f64358126"
   },
-  "_source": "git://github.com/Polymer/core-icon-button.git",
+  "_source": "git+https://github.com/Polymer/core-icon-button.git",
   "_target": "^0.5.0",
   "_originalSource": "Polymer/core-icon-button"
 }

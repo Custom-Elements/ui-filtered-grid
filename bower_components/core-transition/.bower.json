@@ -13,7 +13,7 @@
     "tag": "0.5.2",
     "commit": "fe765044a373603ee87e5c38f526e72b7042b23b"
   },
-  "_source": "git://github.com/Polymer/core-transition.git",
+  "_source": "git+https://github.com/Polymer/core-transition.git",
   "_target": "^0.5.0",
   "_originalSource": "Polymer/core-transition"
 }
